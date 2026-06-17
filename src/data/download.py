@@ -76,17 +76,18 @@ def load_bangla_fakenews() -> List[pd.DataFrame]:
     frames: List[pd.DataFrame] = []
 
     def _banfake() -> pd.DataFrame:
-        ds = load_dataset("Karim-Ashraf/BanFakeNews", split="train")
+        # Far121/bangla-fake-news encodes the class in the row id ('real_*' / 'fake_*')
+        # and provides clean Bangla article text (+ url).
+        ds = load_dataset("Far121/bangla-fake-news", split="train")
         df = ds.to_pandas()
-        # label: 1 = authentic/real, 0 = fake (per dataset card variants)
-        col = "label" if "label" in df.columns else "F-type"
-        txt = "content" if "content" in df.columns else (
-            "headline" if "headline" in df.columns else df.columns[0])
-        df = df.rename(columns={txt: "text"})
-        df["label"] = df[col].map({1: "real", 0: "fake"}).fillna("real")
-        return df.dropna(subset=["text"])
+        df["label"] = df["id"].astype(str).str.split("_").str[0].map(
+            {"real": "real", "fake": "fake"})
+        # Prefer full body; fall back to title.
+        df["text"] = df["text"].fillna("").astype(str)
+        df.loc[df["text"].str.len() < 20, "text"] = df["title"].astype(str)
+        return df.dropna(subset=["label"])
 
-    d = _try_hf(_banfake, "BanFakeNews (bn)")
+    d = _try_hf(_banfake, "Far121/bangla-fake-news (bn)")
     if d is not None:
         for lab in ("real", "fake"):
             sub = d[d["label"] == lab]
@@ -112,12 +113,11 @@ def load_malicious() -> List[pd.DataFrame]:
         frames.append(_standardize(d, "malicious", "sms_spam", "text", "en"))
 
     def _phishing() -> pd.DataFrame:
-        ds = load_dataset("ealvaradob/phishing-dataset", "texts",
-                          split="train", trust_remote_code=True)
+        ds = load_dataset("David-Egea/phishing-texts", split="train")
         df = ds.to_pandas()
-        df = df[df["label"] == 1]  # 1 = phishing
-        return df
-    d = _try_hf(_phishing, "ealvaradob/phishing-dataset (malicious)")
+        df = df[df["phishing"] == 1]  # 1 = phishing
+        return df.rename(columns={"text": "text"})
+    d = _try_hf(_phishing, "David-Egea/phishing-texts (malicious)")
     if d is not None:
         frames.append(_standardize(d, "malicious", "phishing_dataset", "text", "en"))
     return frames

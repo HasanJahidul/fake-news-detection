@@ -2,25 +2,28 @@
 
 ## Class x Language
 
-| label     |   bn |   en |
-|:----------|-----:|-----:|
-| fake      |   14 |   44 |
-| malicious |    0 |   66 |
-| real      |   14 |   44 |
+| label     |   bn |    en |
+|:----------|-----:|------:|
+| fake      |  117 | 11119 |
+| malicious |    0 |  7552 |
+| real      |  576 | 13099 |
 
 
 ## Split x Class
 
 | split   |   fake |   malicious |   real |
 |:--------|-------:|------------:|-------:|
-| test    |      9 |          10 |      9 |
-| train   |     40 |          46 |     41 |
-| val     |      9 |          10 |      8 |
+| test    |   1686 |        1133 |   2051 |
+| train   |   7865 |        5286 |   9573 |
+| val     |   1685 |        1133 |   2051 |
 
 
 ## Source x Class
 
-| source    |   fake |   malicious |   real |
-|:----------|-------:|------------:|-------:|
-| synthetic |     58 |          66 |     58 |
+| source             |   fake |   malicious |   real |
+|:-------------------|-------:|------------:|-------:|
+| banfakenews        |    121 |           0 |    580 |
+| gonzaloa_fake_news |  11115 |           0 |  13095 |
+| phishing_dataset   |      0 |        7485 |      0 |
+| sms_spam           |      0 |          67 |      0 |
 

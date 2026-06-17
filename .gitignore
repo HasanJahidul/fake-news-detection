@@ -1,1 +1,16 @@
 .planning/
+
+# Data (licensed / large — never committed) — DATA-01, D-12
+data/raw/
+data/processed/
+*.parquet
+
+# Secrets — V14 / T-01-ID
+.env
+kaggle.json
+*.kaggle.json
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/

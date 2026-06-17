@@ -32,14 +32,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A leakage probe (title-only / single-body-sentence / source-stripped) and source-disjoint split are run; boilerplate (Reuters datelines, outlet names, bylines, URLs, image credits) is stripped, and any near-duplicates are removed before splitting.
   4. Class distribution is reported and balanced (class weighting / in-fold resampling), producing leak-free grouped train/validation/test splits.
   5. A shared `preprocess` function (including `csebuetnlp/normalizer`) handles Bangla + English + code-mixed text and is the single importable entry point for both training and inference.
-**Plans**: 7 plans (5 waves)
+**Plans**: 7 plans (6 waves)
   - [ ] 01-01-PLAN.md — Wave 0: pytest scaffold + test stubs + shared preprocess() (DATA-05)
   - [ ] 01-02-PLAN.md — Wave 1: dataset acquisition scripts → gitignored data/raw/ (DATA-01)
   - [ ] 01-03-PLAN.md — Wave 2: label mapping (LIAR collapse) + provenance schema/Parquet (DATA-02)
   - [ ] 01-04-PLAN.md — Wave 2: boilerplate/source-leakage stripping + language tagging (DATA-03)
-  - [ ] 01-05-PLAN.md — Wave 2: dedup (exact+fuzzy) + source-disjoint grouped 70/15/15 splits (DATA-04)
-  - [ ] 01-06-PLAN.md — Wave 3: build_corpus orchestrator → Parquet + class-distribution report (DATA-02/04)
-  - [ ] 01-07-PLAN.md — Wave 4: leakage probe gate (title/sentence/source-stripped) + report (DATA-03)
+  - [ ] 01-05-PLAN.md — Wave 3: dedup (exact+fuzzy) + source-disjoint grouped 70/15/15 splits (DATA-04) — depends on 01-03 (confirmed source columns for group keys)
+  - [ ] 01-06-PLAN.md — Wave 4: build_corpus orchestrator → Parquet + class-distribution report (DATA-02/04)
+  - [ ] 01-07-PLAN.md — Wave 5: leakage probe gate (title/sentence/source-stripped) + report (DATA-03)
+
+  **Wave structure:** W0 {01-01} → W1 {01-02} → W2 {01-03, 01-04} → W3 {01-05} → W4 {01-06} → W5 {01-07}
 
 ### Phase 2: Classical Baselines + Metric Discipline
 **Goal**: Trained, serialized TF-IDF classical baselines that validate the data pipeline and artifact-persistence path on CPU, with macro-F1 / per-class / confusion-matrix reporting established as the project's metric standard.
@@ -122,3 +124,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. External Verification Module | 0/TBD | Not started | - |
 | 6. Fusion + Explainability | 0/TBD | Not started | - |
 | 7. Integration + Streamlit UI | 0/TBD | Not started | - |
+</content>

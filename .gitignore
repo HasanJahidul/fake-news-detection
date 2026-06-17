@@ -1,7 +1,11 @@
 .planning/
 
 # Data (licensed / large — never committed) — DATA-01, D-12
+# Both bare and trailing-slash forms so `git check-ignore data/raw` matches
+# whether or not the directory has been physically created yet.
+data/raw
 data/raw/
+data/processed
 data/processed/
 *.parquet
 

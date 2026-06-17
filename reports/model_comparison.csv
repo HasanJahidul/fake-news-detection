@@ -1,0 +1,4 @@
+model,type,accuracy,macro_f1,precision,recall
+logistic_regression,classical,1.0,1.0,1.0,1.0
+naive_bayes,classical,1.0,1.0,1.0,1.0
+random_forest,classical,1.0,1.0,1.0,1.0

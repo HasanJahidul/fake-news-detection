@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AI-Driven Fake News & Malicious Content Detection — central config
+# ─────────────────────────────────────────────────────────────────────────────
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  models_dir: models
+  reports_dir: reports
+  corpus: data/processed/corpus.parquet
+  splits_dir: data/processed          # train.parquet / val.parquet / test.parquet
+
+labels: [real, fake, malicious]
+
+data:
+  test_size: 0.15
+  val_size: 0.15
+  random_state: 42
+  max_chars: 5000                      # truncate very long docs
+  # Per-source caps keep classes balanced & training tractable.
+  # null = use all rows available.
+  caps:
+    real: 20000
+    fake: 20000
+    malicious: 12000
+
+classical:
+  tfidf:
+    word_ngram: [1, 2]
+    char_ngram: [3, 5]
+    max_features: 50000
+    min_df: 3
+  class_weight: balanced
+
+transformer:
+  model_name: xlm-roberta-base         # bilingual En+Bn primary
+  bangla_model_name: csebuetnlp/banglabert   # optional Bangla-only comparison
+  max_length: 256
+  batch_size: 16
+  epochs: 3
+  lr: 2.0e-5
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+
+# Decision-fusion weights. Each module emits P(malicious-or-fake risk) in [0,1].
+# Final risk = weighted average; label from classifier argmax, risk adjusts confidence.
+fusion:
+  weights:
+    classifier: 0.55
+    credibility: 0.20
+    style: 0.15
+    external: 0.10
+  # If external verification disabled (no API key), its weight is redistributed.
+  fake_threshold: 0.50
+  malicious_threshold: 0.55
+
+modules:
+  external_verification:
+    enabled: true
+    newsapi_key_env: NEWSAPI_KEY       # read key from this env var
+    trusted_sources: [bbc-news, reuters, associated-press, the-guardian-uk, al-jazeera-english]
+    max_articles: 20
+    timeout_seconds: 6
+  credibility:
+    domains_file: src/modules/domain_credibility.json
+  style:
+    lexicon_file: src/modules/style_lexicon.json

@@ -1,0 +1,15 @@
+{
+  "trusted": [
+    "bbc.com", "bbc.co.uk", "reuters.com", "apnews.com", "theguardian.com",
+    "aljazeera.com", "nytimes.com", "washingtonpost.com", "cnn.com",
+    "npr.org", "who.int", "cdc.gov", "nature.com", "sciencemag.org",
+    "prothomalo.com", "thedailystar.net", "bdnews24.com", "tbsnews.net",
+    "dhakatribune.com", "newagebd.net", "banglatribune.com"
+  ],
+  "untrusted": [
+    "worldnewsdailyreport.com", "empirenews.net", "nationalreport.net",
+    "theonion.com", "clickhole.com"
+  ],
+  "suspicious_tlds": [".xyz", ".top", ".click", ".loan", ".work", ".gq", ".tk", ".ml", ".cf"],
+  "notes": "Curated seed lists. Extend over time. Satire domains (e.g. theonion) are flagged untrusted for a fake-news detector even though they are intentional satire."
+}

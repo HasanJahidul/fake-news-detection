@@ -36,28 +36,35 @@ def _make_frame(rows):
     )
 
 
+# Shared, deliberately class-AMBIGUOUS body content. After the leak is stripped, the
+# three classes share the same vocabulary so genuine content gives the probe no signal
+# to separate on — the ONLY separating signal is the (stripped-away) source artifact.
+# This is what makes the negative control meaningful: a high score can only come from
+# the leak, not from real content differences.
+_SHARED_BODIES = [
+    "the government announced a new policy about the economy and public spending today",
+    "officials met to discuss the budget and the plan for the coming year in the city",
+    "a report describes the situation around the recent event and the people involved",
+    "the statement covers the decision and the reaction from various groups this week",
+    "news about the meeting and the agreement reached between the two sides was shared",
+    "the article explains the background of the case and what may happen next this month",
+]
+
+
+def _shared(i):
+    return _SHARED_BODIES[i % len(_SHARED_BODIES)]
+
+
 @pytest.fixture
 def stripped_corpus():
     """A small corpus where the source leak HAS been stripped.
 
-    Real vs fake bodies differ only in genuine content (no outlet/dateline tell),
-    so a degraded-view probe should NOT be able to cheat to near-ceiling.
+    All three classes draw from the SAME ambiguous body pool, so once stripped there is
+    no class-separating content tell — a degraded-view probe must NOT reach near-ceiling.
     """
-    real = [
-        (f"The committee reviewed the annual budget and approved new spending item {i}.",
-         "real", "isot", "true", "en")
-        for i in range(12)
-    ]
-    fake = [
-        (f"Shocking claim {i}: aliens secretly control the weather, anonymous post says.",
-         "fake", "isot", "fake", "en")
-        for i in range(12)
-    ]
-    mal = [
-        (f"WIN a FREE prize {i} now click the link to claim your reward immediately.",
-         "malicious", "smsspam", "spam", "en")
-        for i in range(12)
-    ]
+    real = [(_shared(i), "real", "isot", "true", "en") for i in range(18)]
+    fake = [(_shared(i), "fake", "isot", "fake", "en") for i in range(18)]
+    mal = [(_shared(i), "malicious", "smsspam", "spam", "en") for i in range(18)]
     return _make_frame(real + fake + mal)
 
 
@@ -65,25 +72,20 @@ def stripped_corpus():
 def leaky_corpus():
     """NEGATIVE CONTROL: the Reuters dateline leak is INTACT (not stripped).
 
-    Every real body starts with 'WASHINGTON (Reuters) -'; fake/malicious never do.
-    A correct probe must catch this and score near-ceiling on source artifacts —
-    proving the probe is actually sensitive to leaks.
+    Bodies are the SAME ambiguous pool as the stripped corpus, EXCEPT every real body is
+    prefixed with 'WASHINGTON (Reuters) -'. So the only thing that separates real from
+    the rest is the dateline artifact. A correct probe must catch this and score
+    near-ceiling — proving the probe is actually sensitive to leaks. After source_strip
+    re-removes the dateline, that signal vanishes and the score must drop.
     """
-    real = [
-        (f"WASHINGTON (Reuters) - The committee reviewed budget item {i} today.",
-         "real", "isot", "true", "en")
-        for i in range(12)
-    ]
-    fake = [
-        (f"Shocking claim {i}: aliens secretly control the weather, post says.",
-         "fake", "isot", "fake", "en")
-        for i in range(12)
-    ]
-    mal = [
-        (f"WIN a FREE prize {i} now click the link to claim your reward now.",
-         "malicious", "smsspam", "spam", "en")
-        for i in range(12)
-    ]
+    # Each class gets a DISTINCT Reuters dateline (city) on the SAME shared bodies. The
+    # only class-separating signal is therefore the dateline artifact — which
+    # strip_boilerplate (isot dispatch) removes for ALL three. So the full view is
+    # near-ceiling (3 distinct city tells) but source_stripped collapses to chance once
+    # every dateline is removed: proves the probe detects the leak AND the strip kills it.
+    real = [(f"WASHINGTON (Reuters) - {_shared(i)}", "real", "isot", "true", "en") for i in range(18)]
+    fake = [(f"LONDON (Reuters) - {_shared(i)}", "fake", "isot", "fake", "en") for i in range(18)]
+    mal = [(f"PARIS (Reuters) - {_shared(i)}", "malicious", "isot", "spam", "en") for i in range(18)]
     return _make_frame(real + fake + mal)
 
 

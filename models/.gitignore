@@ -1,0 +1,6 @@
+# Phase 2 (02-03): keep the models/ directory tracked in git, but do NOT commit the
+# large fitted joblib artifacts — they are deterministically rebuilt by
+# `python -m src.models.train_classical` (mirrors the corpus_report precedent: the
+# report is committed, the large data products are rebuilt, not committed).
+*
+!.gitignore

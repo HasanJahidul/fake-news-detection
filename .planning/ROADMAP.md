@@ -42,9 +42,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 01-02-PLAN.md — Wave 1: dataset acquisition scripts → gitignored data/raw/ (DATA-01)
   - [x] 01-03-PLAN.md — Wave 2: label mapping (LIAR collapse) + provenance schema/Parquet (DATA-02)
   - [x] 01-04-PLAN.md — Wave 2: boilerplate/source-leakage stripping + language tagging (DATA-03)
-  - [ ] 01-05-PLAN.md — Wave 3: dedup (exact+fuzzy) + source-disjoint grouped 70/15/15 splits (DATA-04) — depends on 01-03 (confirmed source columns for group keys)
-  - [ ] 01-06-PLAN.md — Wave 4: build_corpus orchestrator → Parquet + class-distribution report (DATA-02/04)
-  - [ ] 01-07-PLAN.md — Wave 5: leakage probe gate (title/sentence/source-stripped) + report (DATA-03)
+  - [x] 01-05-PLAN.md — Wave 3: dedup (exact+fuzzy) + source-disjoint grouped 70/15/15 splits (DATA-04) — depends on 01-03 (confirmed source columns for group keys)
+  - [x] 01-06-PLAN.md — Wave 4: build_corpus orchestrator → Parquet + class-distribution report (DATA-02/04) — 137,169-row corpus (train 103,801 / val 18,360 / test 15,008), 37.0% dedup removal
+  - [x] 01-07-PLAN.md — Wave 5: leakage probe gate (title/sentence/source-stripped) + report (DATA-03) — GATE PASSED after bare-Reuters strip fix; source_stripped macro-F1 0.9087 (< 0.95), no surviving outlet/year tell
 
   **Wave structure:** W0 {01-01} → W1 {01-02} → W2 {01-03, 01-04} → W3 {01-05} → W4 {01-06} → W5 {01-07}
 
@@ -140,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Foundation | 4/7 | In Progress|  |
+| 1. Data Foundation | 7/7 | Complete | 2026-06-18 |
 | 2. Classical Baselines + Metric Discipline | 0/TBD | Not started | - |
 | 3. Transformer Fine-Tuning + Model Selection | 0/TBD | Not started | - |
 | 4. Signal Modules (Contract + Credibility/Style/Malicious) | 0/TBD | Not started | - |

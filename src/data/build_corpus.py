@@ -323,6 +323,7 @@ def build_corpus(
     schema.validate_provenance(df)
     for s in ("train", "val", "test"):
         part = df[df["split"] == s].reset_index(drop=True)
+        part.attrs.clear()  # drop non-JSON-serializable dedup attrs before pyarrow write
         schema.write_parquet(part, out_dir / f"{s}.parquet")
         log.info("wrote %s.parquet: %d rows", s, len(part))
 

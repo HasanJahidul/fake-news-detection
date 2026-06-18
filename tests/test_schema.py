@@ -54,8 +54,13 @@ class TestLabelMap:
         assert map_label("banfakenews", "fake") == "fake"
 
     def test_banfakenews2_mapping(self):
-        # v2 ships a numeric Label (1 = authentic/real, 0 = fake)
-        assert map_label("banfakenews2", "1") == "real"
+        # v2 ships a 4-CLASS numeric Label (observed in data/raw at 01-06 build time:
+        # 3=~80% authentic majority, 0/1/2 = non-authentic fake-news subtypes), NOT the
+        # binary 1/0 the 01-03 contract first assumed. Collapsed authentic->real, every
+        # non-authentic subtype->fake (see label_map.SOURCE_MAP note + 01-06 SUMMARY flag).
+        assert map_label("banfakenews2", "3") == "real"
+        assert map_label("banfakenews2", "2") == "fake"
+        assert map_label("banfakenews2", "1") == "fake"
         assert map_label("banfakenews2", "0") == "fake"
 
     def test_smsspam_mapping(self):

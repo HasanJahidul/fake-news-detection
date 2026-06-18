@@ -122,9 +122,12 @@ def _stratified_group_fallback(df, group_col: str, seed: int):
     """Fallback (Pitfall 3): StratifiedGroupKFold, pick the best class-balanced
     fold as the test split, then split the remainder into train/val similarly."""
     out = df.reset_index(drop=True).copy()
-    # ~15% test -> n_splits ~ 7; clamp to a sane range for tiny frames.
+    # ~15% test -> n_splits ~ 7; clamp to a sane range for tiny frames. StratifiedGroupKFold
+    # ALSO requires n_splits <= the smallest per-class member count, else it raises -- clamp
+    # by min class count too so the fallback degrades gracefully on small/skewed frames.
     n_groups = out[group_col].nunique()
-    n_splits = max(2, min(7, n_groups))
+    min_class = int(out["label"].value_counts().min())
+    n_splits = max(2, min(7, n_groups, min_class))
 
     sgkf = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
     best = None
@@ -142,7 +145,8 @@ def _stratified_group_fallback(df, group_col: str, seed: int):
     # Carve val from the remaining train rows with a second SGKF pass.
     rem = out[out["split"] == "train"]
     n_rem_groups = rem[group_col].nunique()
-    n_splits2 = max(2, min(6, n_rem_groups))
+    min_class_rem = int(rem["label"].value_counts().min())
+    n_splits2 = max(2, min(6, n_rem_groups, min_class_rem))
     sgkf2 = StratifiedGroupKFold(n_splits=n_splits2, shuffle=True, random_state=seed)
     best2 = None
     for _, val_rel in sgkf2.split(rem, rem["label"], rem[group_col]):

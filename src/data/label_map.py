@@ -65,11 +65,21 @@ SOURCE_MAP: dict[str, dict[str, Optional[str]]] = {
         "0": "fake",
     },
     "banfakenews2": {
-        # v2 ships a numeric Label: 1 = authentic, 0 = fake.
-        "1": "real",
+        # BanFakeNews-2.0 (hrithikmajumdar/bangla-fake-news) ships a 4-CLASS numeric Label
+        # (observed in data/raw at build time: 3=~80% majority, then 2,1,0), NOT the binary
+        # 1/0 the 01-03 contract assumed. Per the dataset's published taxonomy, Label 3 is the
+        # AUTHENTIC majority class and 0/1/2 are non-authentic fake-news subtypes (satire /
+        # clickbait-fake / false-context). Collapsed to the project's 3-class scheme the same
+        # way ISOT/LIAR collapse: authentic -> real, every non-authentic subtype -> fake.
+        # NOTE (flagged for human review in 01-06 SUMMARY): the 0/1/2 subtype semantics are
+        # taken from the dataset card, not an in-file codebook; if a future audit shows label 0
+        # is "satire" that should be excluded rather than treated as fake, drop it here.
+        "3": "real",
+        "2": "fake",
+        "1": "fake",
+        "0": "fake",
         "authentic": "real",
         "real": "real",
-        "0": "fake",
         "fake": "fake",
     },
     "isot": {

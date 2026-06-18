@@ -11,7 +11,8 @@ Contract (D-08, lossless / lightly normalizing only):
   * Whitespace collapse to single spaces, then strip.
   * PRESERVES URLs, ALL-CAPS, and punctuation — Phase 4 style / malicious-content
     signals depend on these. Boilerplate / dateline stripping is offline-only
-    (D-09, src/data/leakage_strip.py) and deliberately NOT done here.
+    (D-09, lives in the data-layer source-leakage strip module) and deliberately
+    NOT done here.
   * Idempotent: preprocess(preprocess(x)) == preprocess(x).
   * None / empty / whitespace-only -> "".
 

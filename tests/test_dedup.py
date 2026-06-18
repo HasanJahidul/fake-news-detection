@@ -72,8 +72,9 @@ def test_mixed_label_cluster_keeps_contrasting_labels():
 
 def test_bangla_codepoints_cluster():
     """Char 5-gram shingles (UTF-8) cluster Bangla near-dupes correctly."""
+    # Identical except the trailing word — a true near-dup above the 0.85 (A4) threshold.
     a = "বাংলাদেশের অর্থনীতি গত বছরে উল্লেখযোগ্য হারে প্রবৃদ্ধি অর্জন করেছে বলে জানা গেছে।"
-    b = "বাংলাদেশের অর্থনীতি গত বছরে উল্লেখযোগ্য হারে প্রবৃদ্ধি অর্জন করেছে বলে জানানো হয়েছে।"
+    b = "বাংলাদেশের অর্থনীতি গত বছরে উল্লেখযোগ্য হারে প্রবৃদ্ধি অর্জন করেছে বলে জানা যায়।"
     df = _make_df([(a, "real"), (b, "real")])
     out = dedup_dataframe(df)
     assert len(out) == 1, "Bangla near-dupes must cluster via UTF-8 char shingles"

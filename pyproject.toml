@@ -10,6 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "pandas>=2.2",
     "pyarrow==24.0.0",
+    "datasketch==1.10.0",
+    "scikit-learn==1.6.1",
 ]
 
 [tool.pytest.ini_options]

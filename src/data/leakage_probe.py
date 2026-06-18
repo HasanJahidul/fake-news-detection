@@ -46,6 +46,31 @@ from src.data.leakage_strip import strip_boilerplate
 # surviving leak (RESEARCH Pattern 4 FAIL rule; Roadmap Phase-2 SC-3 uses ~0.98 acc).
 CEILING = 0.95
 
+# Source-artifact "tells" that must NOT appear in a class's top features (RESEARCH
+# Pattern 4 / Pitfall 1): an outlet name, a dateline city, or a 4-digit year among the
+# top tokens is a direct leak signal even if macro-F1 is under the ceiling. Detected on
+# the top-feature tokens; the caller decides whether they survive a strip fix.
+_LEAK_TELL = re.compile(
+    r"(?:^|\W)(reuters|ap newswire|associated press|afp|bbc|cnn)(?:\W|$)|"  # outlet names
+    r"\b(?:19|20)\d{2}\b",  # 4-digit publication year
+    re.IGNORECASE,
+)
+
+
+def leak_tells_in_features(top: dict, max_rank: int = 10) -> list[str]:
+    """Return source-artifact tells (outlet/year) found in the top-``max_rank`` tokens.
+
+    Used by ``probe_all_views`` to flag a residual leak that the macro-F1 ceiling alone
+    would miss (e.g. a bare ``reuters`` token surviving the parenthesized-dateline strip).
+    """
+    hits: list[str] = []
+    for cls, tokens in top.items():
+        for tok in tokens[:max_rank]:
+            if _LEAK_TELL.search(tok):
+                hits.append(f"{cls}:{tok}")
+    return hits
+
+
 # Sentence boundary: English .?! plus the Bangla danda (।) and double-danda (॥).
 _SENT_SPLIT = re.compile(r"(?<=[.!?।॥])\s+|[।॥]\s*")
 
@@ -202,5 +227,20 @@ def probe_all_views(
             "source_stripped (%.4f) exceeds full-content (%.4f) — unexpected" % (stripped, full)
         )
 
+    # Top-feature leak tells (outlet/year) on the source_stripped view — a residual
+    # source artifact the macro-F1 ceiling alone would miss (RESEARCH Pattern 4 FAIL).
+    tells = leak_tells_in_features(views["source_stripped"]["top_features"])
+    if tells:
+        reasons.append(
+            "source artifact tell(s) in source_stripped top features: %s — residual leak (Pitfall 1)"
+            % ", ".join(tells)
+        )
+
     verdict = "FAIL" if reasons else "PASS"
-    return {"views": views, "verdict": verdict, "reasons": reasons, "ceiling": CEILING}
+    return {
+        "views": views,
+        "verdict": verdict,
+        "reasons": reasons,
+        "ceiling": CEILING,
+        "leak_tells": tells,
+    }

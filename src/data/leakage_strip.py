@@ -29,23 +29,42 @@ _ISOT_LEADING_DATELINE = re.compile(
 # Residual '(Reuters)' mentions elsewhere in the body (also a leak signal). We drop
 # the token and any immediately-adjacent dash/spacing so no '(Reuters) -' survives.
 _ISOT_RESIDUAL_REUTERS = re.compile(r"\s*\(Reuters\)\s*[-–—]?\s*")
+# Bare in-body 'Reuters' outlet self-references that survive the parenthesized strip and
+# leak the label: the 01-07 probe found `reuters` in the real-class top features even
+# after the dateline was gone (3,462/14,697 isot-real bodies carried boilerplate like
+# "Reuters has not edited the statement", "told Reuters", "a Reuters review", "document
+# seen by Reuters" — outlet self-mentions present only in Reuters-sourced (real) text).
+# Replace the bare outlet token with the neutral placeholder 'the news agency' so the
+# outlet identity is removed WITHOUT deleting the surrounding sentence (Pitfall 4: do
+# not over-strip legitimate content). Word-boundary anchored; the parenthesized form is
+# already handled above so it won't double-fire.
+_ISOT_BARE_REUTERS = re.compile(r"\bReuters\b", re.IGNORECASE)
+_REUTERS_PLACEHOLDER = "the news agency"
 # Collapse any double spaces the removals leave behind.
 _WS = re.compile(r"\s{2,}")
 
 
 def strip_isot_dateline(text: str) -> str:
-    """Remove the ISOT leading Reuters dateline + residual '(Reuters)' mentions.
+    """Remove the ISOT Reuters dateline + residual / bare Reuters outlet mentions.
 
-    Idempotent: ``strip_isot_dateline(strip_isot_dateline(x)) == strip_isot_dateline(x)``.
-    Returns "" for None / empty input.
+    Three passes:
+      1. leading ``CITY (Reuters) -`` dateline prefix,
+      2. residual parenthesized ``(Reuters)`` mentions,
+      3. bare in-body ``Reuters`` outlet self-references → neutral placeholder
+         (``the news agency``) so the outlet identity is gone but the sentence stays.
+
+    Idempotent: re-running over already-stripped text changes nothing (the placeholder
+    contains no 'Reuters' token). Returns "" for None / empty input.
     """
     if not text:
         return ""
     # 1. Strip the leading 'CITY (Reuters) -' prefix.
     text = _ISOT_LEADING_DATELINE.sub("", text, count=1)
-    # 2. Strip any residual '(Reuters)' mentions left in the body.
+    # 2. Strip any residual parenthesized '(Reuters)' mentions left in the body.
     text = _ISOT_RESIDUAL_REUTERS.sub(" ", text)
-    # 3. Tidy spacing introduced by the removals.
+    # 3. Neutralize bare in-body 'Reuters' outlet self-references (01-07 probe leak).
+    text = _ISOT_BARE_REUTERS.sub(_REUTERS_PLACEHOLDER, text)
+    # 4. Tidy spacing introduced by the removals.
     text = _WS.sub(" ", text).strip()
     return text
 

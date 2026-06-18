@@ -199,6 +199,74 @@ def test_load_artifacts_has_no_training_path():
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# write_report (Task 2) — SC-4 + D-03 + D-04 report content
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def report_results(splits):
+    train, val, test = splits
+    return tc.train_and_compare(train, val, test)
+
+
+def test_report_has_macro_f1_confusion_and_per_language(report_results, tmp_path):
+    path = tmp_path / "classical_baselines_report.md"
+    tc.write_report(report_results, path)
+    text = path.read_text(encoding="utf-8")
+    assert "Macro-F1" in text
+    # a confusion matrix table header in LABELS order
+    assert "true \\ pred" in text
+    for label in LABELS:
+        assert label in text
+    # per-language macro-F1 table present
+    assert "Per-language macro-F1" in text
+    assert "| language | macro-F1 |" in text
+
+
+def test_report_names_selected_best_with_test_metrics(report_results, tmp_path):
+    path = tmp_path / "r.md"
+    tc.write_report(report_results, path)
+    text = path.read_text(encoding="utf-8")
+    assert "Selected best model" in text
+    assert report_results["best"] in text
+    # the selected-best test macro-F1 value appears
+    best_f1 = report_results["models"][report_results["best"]]["test_macro_f1"]
+    assert f"{best_f1:.4f}" in text
+
+
+def test_report_has_bfn2_caveat_and_hyperparameters(report_results, tmp_path):
+    path = tmp_path / "r.md"
+    tc.write_report(report_results, path)
+    text = path.read_text(encoding="utf-8")
+    # D-04 satire-vs-fake caveat
+    assert "satire" in text.lower()
+    assert "BFN2" in text or "BanFakeNews" in text
+    # recorded hyperparameters
+    assert "max_features" in text
+    assert "min_df" in text
+    assert "char_wb" in text
+
+
+def test_report_records_sc3_leakage_recheck(report_results, tmp_path):
+    path = tmp_path / "r.md"
+    tc.write_report(report_results, path)
+    text = path.read_text(encoding="utf-8")
+    assert "Leakage re-check" in text
+    # notes the >= 0.98 investigation column/threshold
+    assert "0.98" in text
+    assert "investigate" in text.lower()
+
+
+def test_report_contains_no_raw_article_text(report_results, tmp_path):
+    """Counts/metrics only (SYS-02): no fixture body sentence appears verbatim."""
+    path = tmp_path / "r.md"
+    tc.write_report(report_results, path)
+    text = path.read_text(encoding="utf-8")
+    for body in _REAL + _FAKE + _MAL:
+        assert body not in text, f"raw article text leaked into report: {body!r}"
+
+
 @pytest.mark.slow
 def test_real_corpus_end_to_end():
     """SC-1..SC-3 against data/processed/*.parquet. Built Parquet is a precondition —

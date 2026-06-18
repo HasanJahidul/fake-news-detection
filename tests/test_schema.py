@@ -150,7 +150,7 @@ def test_provenance_complete(sample_corpus):
 
 def test_bangla_roundtrip(tmp_path, sample_bn, sample_corpus):
     """A Bangla string survives a Parquet write -> read byte-identical (D-12)."""
-    from src.data.schema import read_parquet, write_parquet
+    from src.data.schema import PROVENANCE_COLUMNS, read_parquet, write_parquet
 
     df = _full_corpus(sample_corpus)
     # force a known Bangla string into a row so we can assert exact equality
@@ -164,6 +164,6 @@ def test_bangla_roundtrip(tmp_path, sample_bn, sample_corpus):
     assert got == sample_bn
     # byte-identical UTF-8
     assert got.encode("utf-8") == sample_bn.encode("utf-8")
-    # full frame survives (column-set + row-count)
-    assert set(back.columns) >= set(df.columns)
+    # the persisted frame carries exactly the D-13 provenance columns, all rows kept
+    assert set(back.columns) == set(PROVENANCE_COLUMNS)
     assert len(back) == len(df)

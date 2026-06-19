@@ -205,11 +205,19 @@ def select_best(results: dict) -> str:
     qualified = {n: r for n, r in results.items() if not _collapsed(r)}
     pool = qualified or results  # never return empty
 
-    def _sort_key(name: str):
-        r = pool[name]
-        return (round(r["val_macro_f1"] / _TIE_BAND), _min_recall(r), r["val_macro_f1"])
-
-    return max(pool, key=_sort_key)
+    # Rank by EXACT val macro-F1 (minority recall as a stable secondary key), then resolve
+    # GENUINE near-ties with an explicit distance check against the top model (WR-02). The
+    # previous round(f1 / _TIE_BAND) binning depended on proximity to bin boundaries, not
+    # actual distance, so the D-03 minority tiebreak could silently fail to fire for two
+    # models a hair apart that straddled a bin edge.
+    ranked = sorted(
+        pool,
+        key=lambda n: (pool[n]["val_macro_f1"], _min_recall(pool[n])),
+        reverse=True,
+    )
+    top = ranked[0]
+    ties = [n for n in ranked if abs(pool[n]["val_macro_f1"] - pool[top]["val_macro_f1"]) <= _TIE_BAND]
+    return max(ties, key=lambda n: _min_recall(pool[n]))
 
 
 # ---------------------------------------------------------------------------

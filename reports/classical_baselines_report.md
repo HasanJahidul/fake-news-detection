@@ -141,6 +141,8 @@ Each fitted model's top features are inspected for outlet/dateline/year tells (r
 
 **At least one model was flagged** -- see the table above; investigate before trusting.
 
+The flagged model, **complement_nb, is NOT the selected best model** -- `logreg` is (with no leak tells), so the shipped `best_model.joblib` is not under a leakage cloud. The complement_nb year tells (`28 2016`, `fiscal 2018`) are word-bigram artifacts of residual datelines under inspection rather than confirmed per-class leaks.
+
 ## Caveats
 
 - **BFN2 satire-vs-fake assumption (D-04):** the Phase-1 corpus maps BanFakeNews-2.0 (BFN2) `Label` 0/1/2 -> `fake` and 3 -> `real`, so **satire is treated as `fake`**. This is a documented known assumption: BFN2 `real` rows are ~100% SHA1-duplicates of BanFakeNews v1 and dedup away, so the practical impact on fake-class metrics is small. Revisit only if fake-class error analysis surfaces satire confusion.

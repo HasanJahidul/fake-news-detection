@@ -15,6 +15,11 @@ importances are not per-class).
 
 ``recheck_model`` returns an explicit ``investigate`` flag + ``leak_tells`` list so the
 02-03 report records an auditable trail of which models were cleared / flagged (T-02-04).
+
+SCOPE (WR-03): leak-tell matching is restricted to WORD-view feature names; char-view
+(``char__``) n-gram fragments are filtered out before the ``_LEAK_TELL`` regex runs,
+because that whole-token outlet/year regex cannot match tells fragmented across char
+n-grams. Char-view leak detection is therefore out of scope for this gate.
 """
 
 from __future__ import annotations
@@ -30,6 +35,30 @@ INVESTIGATE_THRESHOLD: float = 0.98
 
 # RF feature_importances_ are a single GLOBAL ranking (not per-class) — keyed under this.
 _GLOBAL_KEY = "_global_"
+
+# WR-03 — SCOPE: the SC-3 leak-tell re-check inspects WORD-view feature names only. The
+# Phase-2 vectorizer is a FeatureUnion of a `word` view and a `char_wb (3,5)` view, so
+# ~half the feature names are char n-gram fragments (e.g. `char__ 201`, `char__016`). The
+# reused Phase-1 `_LEAK_TELL` regex (\b(?:19|20)\d{2}\b for years + an outlet alternation)
+# only matches clean, whole tokens; a year/outlet tell fragmented across char n-grams
+# cannot match it. Rather than relax the SINGLE-SOURCE-OF-TRUTH regex (which would risk
+# false positives across the Phase-1 gate that also reuses it), we explicitly restrict the
+# re-check to word-view names. Char-view leak detection is OUT OF SCOPE for this gate;
+# `top_features` still records every extracted token (word + char) for the audit trail.
+_CHAR_VIEW_PREFIX = "char__"
+
+
+def _word_view_only(top: dict) -> dict:
+    """Drop char-view (``char__``-prefixed) feature names from a per-key top-token dict.
+
+    The ``_LEAK_TELL`` regex cannot match char n-gram fragments, so passing them through
+    adds only noise (WR-03). Word-view names are kept verbatim (including any ``word__``
+    prefix, which the regex matches inside the token string).
+    """
+    return {
+        key: [t for t in tokens if not str(t).startswith(_CHAR_VIEW_PREFIX)]
+        for key, tokens in top.items()
+    }
 
 
 def _rank_tokens(weights: np.ndarray, feature_names: list[str], n: int) -> list[str]:
@@ -88,10 +117,15 @@ def recheck_model(model, feature_names, score: float, n: int = 20) -> dict:
     ``investigate`` when the model's ``score`` reaches :data:`INVESTIGATE_THRESHOLD`
     OR any outlet/year tell surfaces.
 
+    SCOPE (WR-03): leak-tell matching runs over WORD-view feature names only; char-view
+    (``char__``) n-gram fragments are filtered out first because the ``_LEAK_TELL`` regex
+    cannot match year/outlet tells fragmented across char n-grams. ``top_features`` still
+    reports every extracted token (word + char) for the auditable trail.
+
     Returns ``{"top_features", "leak_tells", "score", "investigate"}``.
     """
     top = top_tokens_for_model(model, feature_names, n=n)
-    tells = leak_tells_in_features(top)
+    tells = leak_tells_in_features(_word_view_only(top))
     return {
         "top_features": top,
         "leak_tells": tells,

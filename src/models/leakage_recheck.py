@@ -61,10 +61,20 @@ def _word_view_only(top: dict) -> dict:
     }
 
 
-def _rank_tokens(weights: np.ndarray, feature_names: list[str], n: int) -> list[str]:
-    """Top-``n`` ``feature_names`` by descending ``weights`` (1-D importance/log-prob row)."""
-    order = np.asarray(weights).argsort()[::-1][:n]
-    return [str(feature_names[i]) for i in order]
+def _rank_tokens(
+    weights: np.ndarray, feature_names: list[str], n: int, *, ascending: bool = False
+) -> list[str]:
+    """Top-``n`` ``feature_names`` by ``weights`` (1-D importance/log-prob row).
+
+    Descending by default (largest weight = most predictive). Pass ``ascending=True``
+    for **ComplementNB** (WR-01): its ``feature_log_prob_`` is a *complement*-class
+    statistic, so the features most characteristic of a class are the SMALLEST (most
+    negative) values, not the largest — ranking it descending surfaces the wrong tokens.
+    """
+    order = np.asarray(weights).argsort()
+    if not ascending:
+        order = order[::-1]
+    return [str(feature_names[i]) for i in order[:n]]
 
 
 def top_tokens_for_model(model, feature_names, n: int = 20) -> dict:
@@ -89,7 +99,14 @@ def top_tokens_for_model(model, feature_names, n: int = 20) -> dict:
     if hasattr(model, "feature_log_prob_"):
         classes = list(model.classes_)
         logp = np.asarray(model.feature_log_prob_)
-        return {str(cls): _rank_tokens(logp[ci], feature_names, n) for ci, cls in enumerate(classes)}
+        # WR-01: ComplementNB's feature_log_prob_ is a COMPLEMENT statistic — rank
+        # ascending so the smallest (most class-characteristic) values come first.
+        # MultinomialNB and other NB variants keep the standard descending order.
+        ascending = type(model).__name__ == "ComplementNB"
+        return {
+            str(cls): _rank_tokens(logp[ci], feature_names, n, ascending=ascending)
+            for ci, cls in enumerate(classes)
+        }
 
     # RandomForest / tree ensembles: single global importance ranking (not per-class).
     if hasattr(model, "feature_importances_"):

@@ -65,3 +65,24 @@ def test_fit_uses_val_only(monkeypatch):
     cal = pytest.importorskip("src.models.calibration")
     sig = inspect.signature(cal.fit_temperature)
     assert "test" not in sig.parameters
+
+
+def test_apply_temperature_divides_logits():
+    """apply_temperature(logits, T) == logits / T (caller softmaxes)."""
+    import torch
+
+    cal = pytest.importorskip("src.models.calibration")
+    logits = torch.tensor([[2.0, -2.0], [1.0, 3.0]])
+    out = cal.apply_temperature(logits, 2.0)
+    assert torch.allclose(out, logits / 2.0)
+
+
+def test_temperature_json_round_trips(tmp_path):
+    """save_temperature/load_temperature round-trip the {gate, realfake, gate_threshold} schema."""
+    cal = pytest.importorskip("src.models.calibration")
+    path = tmp_path / "temperature.json"
+
+    cal.save_temperature(path, gate=1.25, realfake=0.85, gate_threshold=0.4)
+    loaded = cal.load_temperature(path)
+
+    assert loaded == {"gate": 1.25, "realfake": 0.85, "gate_threshold": 0.4}

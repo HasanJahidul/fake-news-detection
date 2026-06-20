@@ -2,52 +2,72 @@
 
 ## Milestones
 
-- ✅ **v1.0 Data + Classical Foundation** — Phases 1–2 (shipped 2026-06-19)
-- 📋 **Next milestone** — Phases 3–7 (transformer → modules → verification → fusion/explainability → UI), to be scoped via `/gsd-new-milestone`
+- ✅ **v1.0 — Data + Classical Foundation** — Phases 1–2 (shipped 2026-06-19)
+- 📋 **v2.0 — Multi-Signal Detection & Explainable UI** — Phases 3–7 (transformer → modules → verification → fusion/explainability → UI)
 
 ## Overview
 
-This roadmap builds a multi-signal text-classification pipeline for the Bangladesh context (Bangla + English + code-mixed) bottom-up, following the strict offline→online boundary the architecture demands. We start by assembling a de-leaked, balanced, documented 3-class corpus (the gate for all training), then train fast classical baselines to lock metric discipline before spending GPU time on the primary transformer. Once the `ModuleResult` contract is fixed, the credibility / style / malicious-detection signal modules build in parallel, the network-bound verification module is isolated for its own risk-managed phase, fusion + explainability consume all upstream signals (with an ablation gate proving fusion beats the transformer alone), and finally a thin Streamlit app wraps the pipeline into the real-time, explainable verdict that is the project's core value.
+This roadmap builds a multi-signal text-classification pipeline for the Bangladesh context (Bangla + English + code-mixed) bottom-up, following the strict offline→online boundary the architecture demands. v1.0 assembled a de-leaked, balanced, documented 3-class corpus (the gate for all training) and trained fast classical baselines to lock metric discipline before any GPU spend. v2.0 takes the 22 carried-forward requirements: fine-tune the primary transformer, fix the `ModuleResult` contract and build the credibility / style / malicious-detection signal modules, isolate the network-bound verification module in its own risk-managed phase, fuse all upstream signals with explainability (gated by an ablation proving fusion beats the transformer alone), and finally wrap the pipeline in a thin local Streamlit app — delivering the real-time, explainable verdict that is the project's core value.
 
 ## Phases
 
-**Phase Numbering:** Integer phases (1, 2, 3) are planned milestone work; decimal phases (2.1) are urgent insertions (marked INSERTED).
+**Phase Numbering:** Integer phases (1, 2, 3) are planned milestone work; decimal phases (2.1) are urgent insertions (marked INSERTED). Numbering continues across milestones — v2.0 begins at Phase 3.
+
+### ✅ Milestone v1.0 — Data + Classical Foundation (Phases 1–2) — SHIPPED 2026-06-19
 
 <details>
-<summary>✅ v1.0 Data + Classical Foundation (Phases 1–2) — SHIPPED 2026-06-19</summary>
+<summary>SHIPPED 2026-06-19 — foundation only (7 of 29 v1 requirements; 22 carried forward to v2.0)</summary>
 
-- [x] **Phase 1: Data Foundation** (7/7 plans) — completed 2026-06-18 — de-leaked, documented 3-class corpus (137,169 rows) + shared preprocess(); leakage gate PASSED.
+- [x] **Phase 1: Data Foundation** (7/7 plans) — completed 2026-06-18 — de-leaked, documented 3-class corpus (137,169 rows) + shared preprocess(); leakage gate PASSED (caught + fixed a real Reuters-dateline leak).
 - [x] **Phase 2: Classical Baselines + Metric Discipline** (3/3 plans) — completed 2026-06-19 — TF-IDF + LR/NB/RF serialized; best = LogisticRegression, test macro-F1 0.9140; metric discipline + SC-3 leakage re-check locked.
 
 Full detail archived in `milestones/v1.0-ROADMAP.md`.
 
 </details>
 
-### 📋 Next milestone (Phases 3–7 — planned, not yet scoped)
+### 📋 Milestone v2.0 — Multi-Signal Detection & Explainable UI (Phases 3–7)
 
-- [ ] **Phase 3: Transformer Fine-Tuning + Model Selection** - Fine-tuned BanglishBERT/BanglaBERT (XLM-R fallback) exported for local inference; two-stage classifier with calibrated confidence; best model selected.
-- [ ] **Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)** - `ModuleResult` contract plus credibility, style, and malicious-detection modules conforming to it.
-- [ ] **Phase 5: External Verification Module** - Async, timeout-bounded, gracefully-abstaining verification against free fact-check/Wikipedia APIs, with measured Bangla coverage.
-- [ ] **Phase 6: Fusion + Explainability** - Weighted-vote + rule-override fusion with calibrated confidence; faithful word highlights + per-module contribution breakdown; ablation gate vs transformer-alone.
-- [ ] **Phase 7: Integration + Streamlit UI** - Thin pipeline wrapper + Streamlit app: paste text OR URL, instant explained verdict on local hardware; privacy + disclaimer.
+- [ ] **Phase 3: Transformer Fine-Tuning + Model Selection** — Fine-tuned BanglishBERT/BanglaBERT (XLM-R fallback) exported for local inference; two-stage classifier with calibrated confidence; best model selected.
+- [ ] **Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)** — `ModuleResult` contract plus credibility, style, and malicious-detection modules conforming to it.
+- [ ] **Phase 5: External Verification Module** — Async, timeout-bounded, gracefully-abstaining verification against free fact-check/Wikipedia APIs, with measured Bangla coverage.
+- [ ] **Phase 6: Fusion + Explainability** — Weighted-vote + rule-override fusion with calibrated confidence; faithful word highlights + per-module contribution breakdown; ablation gate vs transformer-alone.
+- [ ] **Phase 7: Integration + Streamlit UI** — Thin pipeline wrapper + Streamlit app: paste text OR URL, instant explained verdict on local hardware; privacy + disclaimer.
 
-## Phase Details (Phases 3–7)
+## Phase Details
 
-### Phase 3: Transformer Fine-Tuning + Model Selection
+### Milestone v2.0 — Multi-Signal Detection & Explainable UI (Phase Details)
 
-**Goal**: A fine-tuned multilingual transformer exported for local inference, wrapped in a two-stage (malicious-gate then real/fake) classifier with calibrated per-prediction confidence, with the primary model selected by measured code-mixed macro-F1 and local latency.
+#### Phase 3: Transformer Fine-Tuning + Model Selection
+
+**Goal**: A fine-tuned multilingual transformer exported for local inference, wrapped in a two-stage (malicious-gate then real/fake) classifier with calibrated per-prediction confidence, with the primary model selected by per-language macro-F1 (Bangla priority; code-mixed is a qualitative small-N check, latency relaxed per D-11).
 **Depends on**: Phase 2
 **Requirements**: CLS-02, CLS-04
 **Success Criteria** (what must be TRUE):
 
   1. BanglishBERT/BanglaBERT (primary) and XLM-R (fallback) are fine-tuned and compared head-to-head on a code-mixed validation set, reporting per-language and code-mixed macro-F1, with the matching `csebuetnlp/normalizer` applied identically at train and inference.
   2. The selected transformer is exported via `save_pretrained` to `models/transformer/` (with tokenizer + label map) and loads for inference without any training code path.
-  3. Classification runs as a two-stage approach (malicious-vs-not gate, then real/fake) rather than a flat 3-way softmax, and emits a confidence score with every prediction.
-  4. A selection report records the chosen model, its code-mixed/per-language metrics, and measured single-input inference latency on the target local hardware.
+  3. Classification runs as a two-stage approach (malicious-vs-not gate, then real/fake) rather than a flat 3-way softmax, and emits a calibrated confidence score with every prediction.
+  4. A selection report records the chosen model and its code-mixed/per-language metrics. (Latency relaxed per D-11 — the report confirms the model runs interactively on the M4; no latency benchmark.)
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
 
-### Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)
+- [ ] 03-01-PLAN.md — Install pinned transformer deps (torch 2.6 / transformers 4.46) + import gate + tiny GPU-free fixture + 9 Wave-0 RED test scaffolds.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — transformer_data.py (gate/realfake label views, preprocess→tokenize, class weights) + calibration.py (val-only temperature scaling).
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — transformer_train.py (class-weighted WeightedTrainer + save_pretrained export layout) + Colab T4 training notebook.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-04-PLAN.md — transformer_infer.py (load-only two-stage cascade + calibrated confidence) + select_transformer.py (Bangla-priority selection, threshold sweep, SC-3 re-check, selection report) + code-mixed probe.
+
+#### Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)
 
 **Goal**: A locked uniform `ModuleResult` contract plus three signal modules — source credibility, writing-style/behavioral, and malicious-content detection — that each emit that contract and can be tested in isolation.
 **Depends on**: Phase 3
@@ -55,13 +75,13 @@ Full detail archived in `milestones/v1.0-ROADMAP.md`.
 **Success Criteria** (what must be TRUE):
 
   1. A `ModuleResult` contract (label, score, contribution, evidence, available) is defined in `modules/base.py`, and every module returns it so modules are swappable without touching fusion.
-  2. The credibility module scores a source from a curated domain-reputation list + false-content history, treats unknown domains as neutral (never "fake"), and emits its result as a `ModuleResult` for text-only input scoring neutral.
+  2. The credibility module scores a source from a curated domain-reputation list + false-content history, treats unknown domains as neutral (never "fake"), and emits its result as a `ModuleResult` scoring neutral for text-only input that has no source.
   3. The style module detects clickbait-lexicon hits, ALL-CAPS ratio, excessive punctuation, sensational/emotional tone, and repetition across Bangla + English lexicons, emitted as a `ModuleResult`.
   4. The malicious module detects phishing text (credential/urgency cues), scam text (job/lottery/financial fraud), and flags suspicious/malware-distribution URLs via lexical heuristics (IP-host, typosquatting, subdomain depth, punycode, blocklist snapshot) using only features computable at inference, with a tested no-network path.
 
 **Plans**: TBD
 
-### Phase 5: External Verification Module
+#### Phase 5: External Verification Module
 
 **Goal**: A verification module that extracts a checkable claim, queries free trusted sources, and returns a uniform support/refute/no-evidence signal — async, timeout-bounded, and gracefully abstaining so it never blocks or coerces the verdict.
 **Depends on**: Phase 4
@@ -75,7 +95,7 @@ Full detail archived in `milestones/v1.0-ROADMAP.md`.
 
 **Plans**: TBD
 
-### Phase 6: Fusion + Explainability
+#### Phase 6: Fusion + Explainability
 
 **Goal**: A fusion layer that combines the classifier + credibility + style + verification signals into one calibrated verdict + confidence (proven to beat the transformer alone), with faithful word-level highlights and a per-module contribution breakdown.
 **Depends on**: Phase 5
@@ -89,7 +109,7 @@ Full detail archived in `milestones/v1.0-ROADMAP.md`.
 
 **Plans**: TBD
 
-### Phase 7: Integration + Streamlit UI
+#### Phase 7: Integration + Streamlit UI
 
 **Goal**: A thin pipeline orchestrator wrapped in a local Streamlit app that accepts pasted text or a URL and returns an instant, clearly-explained verdict + confidence on local hardware, respecting privacy and surfacing a disclaimer.
 **Depends on**: Phase 6
@@ -112,8 +132,8 @@ Full detail archived in `milestones/v1.0-ROADMAP.md`.
 |-------|-----------|----------------|--------|-----------|
 | 1. Data Foundation | v1.0 | 7/7 | Complete | 2026-06-18 |
 | 2. Classical Baselines + Metric Discipline | v1.0 | 3/3 | Complete | 2026-06-19 |
-| 3. Transformer Fine-Tuning + Model Selection | next | 0/TBD | Not started | - |
-| 4. Signal Modules (Contract + Credibility/Style/Malicious) | next | 0/TBD | Not started | - |
-| 5. External Verification Module | next | 0/TBD | Not started | - |
-| 6. Fusion + Explainability | next | 0/TBD | Not started | - |
-| 7. Integration + Streamlit UI | next | 0/TBD | Not started | - |
+| 3. Transformer Fine-Tuning + Model Selection | v2.0 | 0/4 | Planned | - |
+| 4. Signal Modules (Contract + Credibility/Style/Malicious) | v2.0 | 0/TBD | Not started | - |
+| 5. External Verification Module | v2.0 | 0/TBD | Not started | - |
+| 6. Fusion + Explainability | v2.0 | 0/TBD | Not started | - |
+| 7. Integration + Streamlit UI | v2.0 | 0/TBD | Not started | - |

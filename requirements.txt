@@ -1,0 +1,18 @@
+# Runtime dependencies for the data pipeline + classical models (v1.0).
+# Install with:  pip install -r requirements.txt
+#
+# Note: normalizer (csebuetnlp) is git-only and MANDATORY — preprocessing
+# (and therefore training) will not work without it.
+
+pandas>=2.2
+pyarrow==24.0.0
+datasketch==1.10.0
+scikit-learn==1.6.1
+joblib>=1.4
+numpy>=1.26
+
+# Data download from Kaggle (needs a free Kaggle API token — see SETUP.md)
+kaggle>=1.6
+
+# Bangla Unicode normalizer — required before any preprocessing
+git+https://github.com/csebuetnlp/normalizer

@@ -8,6 +8,17 @@ A real-time system that classifies a piece of text (or the article behind a URL)
 
 A user pastes text or a URL and instantly gets a trustworthy real/fake/malicious verdict **with an understandable explanation** — accuracy plus transparency is the whole point. If only one thing works, it is: text in → explained verdict + confidence out.
 
+## Current Milestone: v2.0 Multi-Signal Detection & Explainable UI
+
+**Goal:** Turn the shipped classical foundation into the full real-time, explainable detector — a fine-tuned multilingual transformer, the three supporting signal modules, free-API external verification, calibrated decision fusion, faithful explanations, and a local Streamlit UI — delivering the core value end-to-end (text/URL in → explained verdict + confidence out). This milestone takes all **22 requirements carried forward from v1.0** (Phases 3–7).
+
+**Target features:**
+- Fine-tuned multilingual transformer (BanglishBERT/BanglaBERT primary, XLM-R fallback) as the primary model — two-stage (malicious-gate → real/fake) classifier with calibrated confidence, exported for local inference *(Phase 3)*
+- Malicious-content detection (phishing / scam / suspicious-URL) plus source-credibility and writing-style modules, all behind a uniform `ModuleResult` contract *(Phase 4)*
+- External verification against free fact-check / Wikipedia APIs — async, timeout-bounded, gracefully abstaining *(Phase 5)*
+- Decision fusion (weighted vote + rule override) with faithful word-level explainability + per-module contribution breakdown, gated by an ablation proving fusion beats the transformer alone *(Phase 6)*
+- Local Streamlit UI: paste text OR a URL → instant, clearly-explained verdict + confidence on local hardware *(Phase 7)*
+
 ## Requirements
 
 ### Validated
@@ -128,4 +139,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-19 after v1.0 milestone (Data + Classical Foundation) — Phases 1–2 shipped; 22 product requirements carried forward to next milestone*
+*Last updated: 2026-06-20 — started milestone v2.0 (Multi-Signal Detection & Explainable UI); 22 carried-forward requirements scoped across Phases 3–7*

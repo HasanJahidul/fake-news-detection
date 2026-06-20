@@ -16,3 +16,14 @@ kaggle>=1.6
 
 # Bangla Unicode normalizer — required before any preprocessing
 git+https://github.com/csebuetnlp/normalizer
+
+# Phase 3 transformer training/inference stack (CLAUDE.md-pinned).
+# Imports cleanly against the existing numpy 2.4.6 / pandas 3.0.3 — NO numpy<2.3
+# constraint was required (A1 / Pitfall 7 resolved at install: numpy-2 compatible).
+# Do NOT bump to transformers 5.x or torch 2.12 — the project pins the tested 4.46 / 2.6 line.
+torch==2.6.*
+transformers==4.46.*
+accelerate>=0.26
+datasets
+evaluate
+sentencepiece  # required for the XLM-R (sentencepiece) tokenizer — D-04

@@ -15,10 +15,24 @@ dependencies = [
     "joblib>=1.4",
 ]
 
+[project.optional-dependencies]
+# Phase 3 transformer training/inference stack. Kept OUT of base `dependencies`
+# so the fast suite (and Phase 1/2 runtime) install without torch. CLAUDE.md pins;
+# installs cleanly against numpy 2.4.x / pandas 3.0.x (no numpy<2.3 constraint needed).
+transformer = [
+    "torch==2.6.*",
+    "transformers==4.46.*",
+    "accelerate>=0.26",
+    "datasets",
+    "evaluate",
+    "sentencepiece",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q"
 markers = [
     "slow: marks slow integration tests (leakage probe)",
+    "transformer: marks tests that import the Phase 3 transformer stack (torch/transformers); guarded with importorskip so the fast suite runs without torch installed",
 ]

@@ -1,72 +1,37 @@
 # Roadmap: AI-Driven Detection of Fake News and Malicious Content
 
+## Milestones
+
+- ✅ **v1.0 Data + Classical Foundation** — Phases 1–2 (shipped 2026-06-19)
+- 📋 **Next milestone** — Phases 3–7 (transformer → modules → verification → fusion/explainability → UI), to be scoped via `/gsd-new-milestone`
+
 ## Overview
 
 This roadmap builds a multi-signal text-classification pipeline for the Bangladesh context (Bangla + English + code-mixed) bottom-up, following the strict offline→online boundary the architecture demands. We start by assembling a de-leaked, balanced, documented 3-class corpus (the gate for all training), then train fast classical baselines to lock metric discipline before spending GPU time on the primary transformer. Once the `ModuleResult` contract is fixed, the credibility / style / malicious-detection signal modules build in parallel, the network-bound verification module is isolated for its own risk-managed phase, fusion + explainability consume all upstream signals (with an ablation gate proving fusion beats the transformer alone), and finally a thin Streamlit app wraps the pipeline into the real-time, explainable verdict that is the project's core value.
 
 ## Phases
 
-**Phase Numbering:**
+**Phase Numbering:** Integer phases (1, 2, 3) are planned milestone work; decimal phases (2.1) are urgent insertions (marked INSERTED).
 
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+<details>
+<summary>✅ v1.0 Data + Classical Foundation (Phases 1–2) — SHIPPED 2026-06-19</summary>
 
-Decimal phases appear between their surrounding integers in numeric order.
+- [x] **Phase 1: Data Foundation** (7/7 plans) — completed 2026-06-18 — de-leaked, documented 3-class corpus (137,169 rows) + shared preprocess(); leakage gate PASSED.
+- [x] **Phase 2: Classical Baselines + Metric Discipline** (3/3 plans) — completed 2026-06-19 — TF-IDF + LR/NB/RF serialized; best = LogisticRegression, test macro-F1 0.9140; metric discipline + SC-3 leakage re-check locked.
 
-- [x] **Phase 1: Data Foundation** - De-leaked, balanced, documented 3-class corpus + shared preprocessing; locks the label schema and two-stage decision.
-- [x] **Phase 2: Classical Baselines + Metric Discipline** - TF-IDF + LR/NB/RF serialized artifacts with honest macro-F1 reporting; validates the data+artifact path on CPU.
+Full detail archived in `milestones/v1.0-ROADMAP.md`.
+
+</details>
+
+### 📋 Next milestone (Phases 3–7 — planned, not yet scoped)
+
 - [ ] **Phase 3: Transformer Fine-Tuning + Model Selection** - Fine-tuned BanglishBERT/BanglaBERT (XLM-R fallback) exported for local inference; two-stage classifier with calibrated confidence; best model selected.
 - [ ] **Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)** - `ModuleResult` contract plus credibility, style, and malicious-detection modules conforming to it.
 - [ ] **Phase 5: External Verification Module** - Async, timeout-bounded, gracefully-abstaining verification against free fact-check/Wikipedia APIs, with measured Bangla coverage.
 - [ ] **Phase 6: Fusion + Explainability** - Weighted-vote + rule-override fusion with calibrated confidence; faithful word highlights + per-module contribution breakdown; ablation gate vs transformer-alone.
 - [ ] **Phase 7: Integration + Streamlit UI** - Thin pipeline wrapper + Streamlit app: paste text OR URL, instant explained verdict on local hardware; privacy + disclaimer.
 
-## Phase Details
-
-### Phase 1: Data Foundation
-
-**Goal**: A single, documented, de-leaked, class-balanced 3-class corpus (real/fake/malicious) with grouped train/validation/test splits, plus one shared preprocessing function used identically offline and online.
-**Depends on**: Nothing (first phase)
-**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05
-**Success Criteria** (what must be TRUE):
-
-  1. Download scripts fetch every source dataset (BanFakeNews/2.0, ISOT, LIAR, SMS Spam, phishing) from HF/Kaggle/UCI; no raw data is committed to git.
-  2. A documented label-mapping table assembles real/fake/malicious from the source corpora, with per-sample source provenance retained for auditing.
-  3. A leakage probe (title-only / single-body-sentence / source-stripped) and source-disjoint split are run; boilerplate (Reuters datelines, outlet names, bylines, URLs, image credits) is stripped, and any near-duplicates are removed before splitting.
-  4. Class distribution is reported and balanced (class weighting / in-fold resampling), producing leak-free grouped train/validation/test splits.
-  5. A shared `preprocess` function (including `csebuetnlp/normalizer`) handles Bangla + English + code-mixed text and is the single importable entry point for both training and inference.
-
-**Plans**: 7 plans (6 waves)
-
-  - [x] 01-01-PLAN.md — Wave 0: pytest scaffold + test stubs + shared preprocess() (DATA-05)
-  - [x] 01-02-PLAN.md — Wave 1: dataset acquisition scripts → gitignored data/raw/ (DATA-01)
-  - [x] 01-03-PLAN.md — Wave 2: label mapping (LIAR collapse) + provenance schema/Parquet (DATA-02)
-  - [x] 01-04-PLAN.md — Wave 2: boilerplate/source-leakage stripping + language tagging (DATA-03)
-  - [x] 01-05-PLAN.md — Wave 3: dedup (exact+fuzzy) + source-disjoint grouped 70/15/15 splits (DATA-04) — depends on 01-03 (confirmed source columns for group keys)
-  - [x] 01-06-PLAN.md — Wave 4: build_corpus orchestrator → Parquet + class-distribution report (DATA-02/04) — 137,169-row corpus (train 103,801 / val 18,360 / test 15,008), 37.0% dedup removal
-  - [x] 01-07-PLAN.md — Wave 5: leakage probe gate (title/sentence/source-stripped) + report (DATA-03) — GATE PASSED after bare-Reuters strip fix; source_stripped macro-F1 0.9087 (< 0.95), no surviving outlet/year tell
-
-  **Wave structure:** W0 {01-01} → W1 {01-02} → W2 {01-03, 01-04} → W3 {01-05} → W4 {01-06} → W5 {01-07}
-
-### Phase 2: Classical Baselines + Metric Discipline
-
-**Goal**: Trained, serialized TF-IDF classical baselines that validate the data pipeline and artifact-persistence path on CPU, with macro-F1 / per-class / confusion-matrix reporting established as the project's metric standard.
-**Depends on**: Phase 1
-**Requirements**: CLS-01, CLS-03
-**Success Criteria** (what must be TRUE):
-
-  1. TF-IDF + Logistic Regression, Naive Bayes, and Random Forest are trained on the Phase 1 corpus and the fitted vectorizer + best model are serialized to `models/` for load-only reuse.
-  2. Macro-F1, per-class precision/recall, and a confusion matrix are reported per model on the held-out split (accuracy is never the headline metric); minority-class (fake/malicious) recall is non-trivial.
-  3. Top predictive features are inspected and confirmed not to be outlet names / datelines / years; any model scoring greater than or equal to 98% is investigated as suspected leakage before being trusted.
-  4. A model-comparison report is written to `reports/` and the best classical model is recorded with its metrics.
-
-**Plans**: 3 plans (2 waves)
-
-  - [x] 02-01-PLAN.md — Wave 1: hybrid word+char TF-IDF vectorizer (D-02) + metric-discipline module (macro-F1/per-class/confusion/per-language/minority-guard) (CLS-01, CLS-03)
-  - [x] 02-02-PLAN.md — Wave 1: SC-3 leakage re-check reusing leakage_probe leak-tells across LR/NB/RF + >=0.98 investigation flag (CLS-03)
-  - [x] 02-03-PLAN.md — Wave 2: train/select/serialize orchestrator (D-01/D-03) + models/ joblib artifacts + comparison report with BFN2 caveat (CLS-01, CLS-03) — best=logreg, test macro-F1 0.9140
-
-  **Wave structure:** W1 {02-01, 02-02} → W2 {02-03}
+## Phase Details (Phases 3–7)
 
 ### Phase 3: Transformer Fine-Tuning + Model Selection
 
@@ -141,15 +106,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+**Execution Order:** Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Data Foundation | 7/7 | Complete | 2026-06-18 |
-| 2. Classical Baselines + Metric Discipline | 3/3 | Complete | 2026-06-19 |
-| 3. Transformer Fine-Tuning + Model Selection | 0/TBD | Not started | - |
-| 4. Signal Modules (Contract + Credibility/Style/Malicious) | 0/TBD | Not started | - |
-| 5. External Verification Module | 0/TBD | Not started | - |
-| 6. Fusion + Explainability | 0/TBD | Not started | - |
-| 7. Integration + Streamlit UI | 0/TBD | Not started | - |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Data Foundation | v1.0 | 7/7 | Complete | 2026-06-18 |
+| 2. Classical Baselines + Metric Discipline | v1.0 | 3/3 | Complete | 2026-06-19 |
+| 3. Transformer Fine-Tuning + Model Selection | next | 0/TBD | Not started | - |
+| 4. Signal Modules (Contract + Credibility/Style/Malicious) | next | 0/TBD | Not started | - |
+| 5. External Verification Module | next | 0/TBD | Not started | - |
+| 6. Fusion + Explainability | next | 0/TBD | Not started | - |
+| 7. Integration + Streamlit UI | next | 0/TBD | Not started | - |

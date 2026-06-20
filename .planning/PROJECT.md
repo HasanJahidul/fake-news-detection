@@ -14,7 +14,16 @@ A user pastes text or a URL and instantly gets a trustworthy real/fake/malicious
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+**Data Foundation** — *Shipped v1.0 (Phase 01: data-foundation)*
+- ✓ DATA-01 — Download scripts for all source datasets; raw not committed — v1.0
+- ✓ DATA-02 — Unified 3-class corpus + explicit label mapping + provenance (137,169 rows) — v1.0
+- ✓ DATA-03 — Source/publisher leakage stripped; leakage gate PASSED (caught + fixed a real Reuters-dateline leak) — v1.0
+- ✓ DATA-04 — Class imbalance handled; leak-free source-disjoint 70/15/15 splits — v1.0
+- ✓ DATA-05 — Shared preprocess() (csebuetnlp/normalizer) for Bangla/English/code-mixed; single train=inference entry point — v1.0
+
+**Models (classical)** — *Shipped v1.0 (Phase 02: classical-baselines-metric-discipline)*
+- ✓ CLS-01 — Classical baselines (TF-IDF + LR/NB/RF) trained + serialized — v1.0
+- ✓ CLS-03 — Compare on macro-F1 / per-class / confusion; select best (LogisticRegression, test macro-F1 0.9140; SC-3 leakage re-check enforced) — v1.0
 
 ### Active
 
@@ -25,10 +34,8 @@ A user pastes text or a URL and instantly gets a trustworthy real/fake/malicious
 - [ ] Output a confidence score with every prediction
 - [ ] Handle Bangla, English, and mixed Bangla-English text
 
-**Models**
-- [ ] Classical ML baselines: Logistic Regression, Naive Bayes, Random Forest over TF-IDF features
-- [ ] Multilingual transformer (BERT-family, e.g. BanglaBERT / multilingual BERT / XLM-R) as primary model
-- [ ] Compare models on accuracy / precision / recall / F1; select best
+**Models** *(classical baselines shipped v1.0 → Validated; transformer carried forward)*
+- [ ] Multilingual transformer (BanglishBERT / BanglaBERT primary, XLM-R fallback) as primary model — *CLS-02, Phase 3*
 
 **Malicious-content detection** (distinct from fake news)
 - [ ] Detect phishing messages (credential/data requests)
@@ -74,6 +81,7 @@ A user pastes text or a URL and instantly gets a trustworthy real/fake/malicious
 - **Datasets referenced in the brief** (starting points for research): BanFakeNews (Bangla fake news), FakeNewsNet (English), plus phishing/spam corpora for the malicious classes. Models referenced: BERT, BanglaBERT, RoBERTa.
 - **Prior code existed** (classical.py, transformer.py, credibility/style/verify modules, fusion, Streamlit app) but was wiped for a fresh, clean rebuild. Treat as greenfield.
 - **Challenges flagged in brief**: context/intent/sarcasm, evolving misinformation patterns, multilingual mixed text, psychological manipulation in malicious content, scarce/noisy/imbalanced labeled data, integration complexity of many modules under real-time constraints.
+- **Current state (after v1.0, 2026-06-19)**: Offline foundation shipped — `src/` is 2,579 LOC across 17 Python modules (data pipeline + classical models), 1,658 LOC of tests (100 fast + slow real-corpus gates). 137,169-row 3-class corpus built (gitignored); classical baselines serialized to `models/` (gitignored), best = LogisticRegression (test macro-F1 0.9140). No transformer, malicious-detection, signal modules, verification, fusion, explainability, or UI yet — those are Phases 3–7. 7/29 v1 requirements shipped; 22 carried forward.
 
 ## Constraints
 
@@ -96,6 +104,11 @@ A user pastes text or a URL and instantly gets a trustworthy real/fake/malicious
 | Free APIs only for external verification | No paid keys available | — Pending |
 | Local-only deployment | Demo/evaluation context; avoids hosting complexity | — Pending |
 | 3-class output: real / fake / malicious | Brief's unified framework spanning misinformation + cyber threats | — Pending |
+| Classical baselines before transformer | De-risk the data + artifact-persistence path on CPU before GPU spend | ✓ Good — v1.0 (best classical macro-F1 0.9140; artifact path validated) |
+| macro-F1 headline; ≥98% accuracy = suspected leakage | Honest eval on imbalanced 3-class data; accuracy misleads | ✓ Good — v1.0 (leakage gate caught a real Reuters-dateline leak) |
+| Natural class distribution + class-weighting (no resampling) | D-03/D-04: store/report real distribution, balance at train time | ✓ Good — v1.0 (every model fake+malicious recall > 0) |
+| BanFakeNews-2.0 4-class → 3→real, 0/1/2→fake + report caveat | No in-file codebook; mapping directionally sound, flagged for review | ✓ Good — v1.0 (D-04; documented caveat) |
+| Milestone v1.0 = foundation only (Phases 1–2); 22 reqs carried forward | Slice the offline foundation; full product spans Phases 3–7 | ✓ Good — v1.0 (clean foundation shipped; transformer/modules/UI next) |
 
 ## Evolution
 
@@ -115,4 +128,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-17 after initialization*
+*Last updated: 2026-06-19 after v1.0 milestone (Data + Classical Foundation) — Phases 1–2 shipped; 22 product requirements carried forward to next milestone*

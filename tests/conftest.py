@@ -83,3 +83,84 @@ def sample_corpus():
             "group_key",
         ],
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 03 — transformer suite helpers + tiny GPU-free fixture model
+# ---------------------------------------------------------------------------
+#
+# NOTE: torch / transformers are imported LAZILY *inside* the fixture body, never
+# at this module's top level, so ``import tests.conftest`` (and therefore the whole
+# fast suite collection) works even when the transformer stack is not installed.
+# The transformer test files themselves guard with ``pytest.importorskip("torch")``.
+
+
+def _make_lang_frame(rows):
+    """Build a transformer-suite DataFrame including the ``language`` column.
+
+    Mirrors ``tests/test_train_classical._make_frame`` but is the shared helper for
+    the Phase-3 transformer scaffolds, whose per-language macro-F1 + Bangla-priority
+    selection assertions need the ``language`` provenance column. Columns:
+    ``text, label, source_dataset, original_label, language``.
+    """
+    import pandas as pd  # local import keeps conftest import light
+
+    return pd.DataFrame(
+        rows,
+        columns=["text", "label", "source_dataset", "original_label", "language"],
+    )
+
+
+@pytest.fixture(scope="session")
+def tiny_seqcls_model(tmp_path_factory):
+    """A 2-label toy ``AutoModelForSequenceClassification`` saved to a temp dir.
+
+    Built locally via ``BertConfig`` + ``from_config`` (RANDOM weights — no remote
+    download, T-03-02), with a minimal matching ``BertTokenizerFast`` written from a
+    tiny temp vocab. Both model and tokenizer are ``save_pretrained`` into the same
+    temp directory, whose ``Path`` is returned. Consumers ``from_pretrained(dir)`` and
+    run a CPU forward pass (2-logit output) — no GPU, no network.
+
+    All torch/transformers imports happen here (lazily) so conftest itself imports
+    without the transformer stack. Skips the dependent test if torch is absent.
+    """
+    pytest.importorskip("torch")
+    transformers = pytest.importorskip("transformers")
+    from transformers import (
+        AutoModelForSequenceClassification,
+        BertConfig,
+        BertTokenizerFast,
+    )
+
+    out_dir = tmp_path_factory.mktemp("tiny_seqcls")
+
+    # Minimal WordPiece vocab: required specials + a handful of usable tokens so the
+    # tokenizer can encode the toy text. vocab_size MUST match the config below.
+    vocab_tokens = [
+        "[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]",
+    ]
+    # Pad out to a fixed small vocab_size with deterministic dummy tokens.
+    vocab_size = 64
+    vocab_tokens += [f"tok{i}" for i in range(vocab_size - len(vocab_tokens))]
+    assert len(vocab_tokens) == vocab_size
+
+    vocab_file = out_dir / "vocab.txt"
+    vocab_file.write_text("\n".join(vocab_tokens) + "\n", encoding="utf-8")
+
+    tokenizer = BertTokenizerFast(vocab_file=str(vocab_file))
+
+    cfg = BertConfig(
+        vocab_size=vocab_size,
+        hidden_size=16,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        intermediate_size=32,
+        max_position_embeddings=64,
+        num_labels=2,
+    )
+    model = AutoModelForSequenceClassification.from_config(cfg)
+
+    model.save_pretrained(out_dir)
+    tokenizer.save_pretrained(out_dir)
+
+    return out_dir

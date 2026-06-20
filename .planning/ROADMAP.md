@@ -27,7 +27,7 @@ Full detail archived in `milestones/v1.0-ROADMAP.md`.
 
 ### 📋 Milestone v2.0 — Multi-Signal Detection & Explainable UI (Phases 3–7)
 
-- [ ] **Phase 3: Transformer Fine-Tuning + Model Selection** — Fine-tuned BanglishBERT/BanglaBERT (XLM-R fallback) exported for local inference; two-stage classifier with calibrated confidence; best model selected.
+- [ ] **Phase 3: Transformer Fine-Tuning + Model Selection** — Fine-tuned BanglishBERT/BanglaBERT (XLM-R fallback) exported for local inference; two-stage classifier with calibrated confidence; best model selected. (pipeline built + unit-proven; verification gaps_found 2026-06-20 — SC-1/SC-4 pending: gap-closure 03-05 (wire D-09 sweep / CR-01) + 03-06 (run Colab fine-tune + populate report))
 - [ ] **Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)** — `ModuleResult` contract plus credibility, style, and malicious-detection modules conforming to it.
 - [ ] **Phase 5: External Verification Module** — Async, timeout-bounded, gracefully-abstaining verification against free fact-check/Wikipedia APIs, with measured Bangla coverage.
 - [ ] **Phase 6: Fusion + Explainability** — Weighted-vote + rule-override fusion with calibrated confidence; faithful word highlights + per-module contribution breakdown; ablation gate vs transformer-alone.
@@ -49,23 +49,31 @@ Full detail archived in `milestones/v1.0-ROADMAP.md`.
   3. Classification runs as a two-stage approach (malicious-vs-not gate, then real/fake) rather than a flat 3-way softmax, and emits a calibrated confidence score with every prediction.
   4. A selection report records the chosen model and its code-mixed/per-language metrics. (Latency relaxed per D-11 — the report confirms the model runs interactively on the M4; no latency benchmark.)
 
-**Plans**: 4 plans
+**Plans**: 6 plans (4 built + 2 gap-closure)
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Install pinned transformer deps (torch 2.6 / transformers 4.46) + import gate + tiny GPU-free fixture + 9 Wave-0 RED test scaffolds.
+- [x] 03-01-PLAN.md — Install pinned transformer deps (torch 2.6 / transformers 4.46) + import gate + tiny GPU-free fixture + 9 Wave-0 RED test scaffolds.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — transformer_data.py (gate/realfake label views, preprocess→tokenize, class weights) + calibration.py (val-only temperature scaling).
+- [x] 03-02-PLAN.md — transformer_data.py (gate/realfake label views, preprocess→tokenize, class weights) + calibration.py (val-only temperature scaling).
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-03-PLAN.md — transformer_train.py (class-weighted WeightedTrainer + save_pretrained export layout) + Colab T4 training notebook.
+- [x] 03-03-PLAN.md — transformer_train.py (class-weighted WeightedTrainer + save_pretrained export layout) + Colab T4 training notebook.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03-04-PLAN.md — transformer_infer.py (load-only two-stage cascade + calibrated confidence) + select_transformer.py (Bangla-priority selection, threshold sweep, SC-3 re-check, selection report) + code-mixed probe.
+- [x] 03-04-PLAN.md — transformer_infer.py (load-only two-stage cascade + calibrated confidence) + select_transformer.py (Bangla-priority selection, threshold sweep, SC-3 re-check, selection report) + code-mixed probe.
+
+**Wave 5 — gap closure** *(closes verification gaps_found 2026-06-20)*
+
+- [ ] 03-05-PLAN.md — GAP 1 / CR-01 (autonomous): wire the dead D-09 gate-threshold sweep into select_transformer.main() — expose per-stage val probs (evaluate_cascade_probs / cascade.gate_realfake_probs), assign threshold_record, apply before test eval + write into exported temperature.json; fold in WR-04/IN-01/WR-02/WR-03. Code fix + RED→GREEN unit tests.
+
+**Wave 6 — gap closure** *(blocked on 03-05; not autonomous)*
+
+- [ ] 03-06-PLAN.md — GAP 2 (manual + auto): human Colab free-T4 fine-tune of both backbones → models/transformer/ exports, then `python -m src.models.select_transformer` populates reports/transformer_selection_report.md (no "(pending Colab run)" cells; chosen model + per-language/code-mixed macro-F1 + swept gate threshold + SC-3 result recorded).
 
 #### Phase 4: Signal Modules (Contract + Credibility/Style/Malicious)
 
@@ -132,7 +140,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1. Data Foundation | v1.0 | 7/7 | Complete | 2026-06-18 |
 | 2. Classical Baselines + Metric Discipline | v1.0 | 3/3 | Complete | 2026-06-19 |
-| 3. Transformer Fine-Tuning + Model Selection | v2.0 | 0/4 | Planned | - |
+| 3. Transformer Fine-Tuning + Model Selection | v2.0 | 4/6 | Gap closure planned | - |
 | 4. Signal Modules (Contract + Credibility/Style/Malicious) | v2.0 | 0/TBD | Not started | - |
 | 5. External Verification Module | v2.0 | 0/TBD | Not started | - |
 | 6. Fusion + Explainability | v2.0 | 0/TBD | Not started | - |

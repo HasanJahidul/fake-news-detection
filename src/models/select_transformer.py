@@ -340,8 +340,8 @@ def write_selection_report(
         "tables above (no Bangla/code-mixed malicious coverage).",
         "- **Code-mixed is small-N (D-02):** the code-mixed probe is qualitative; its macro-F1 "
         "is indicative only and does not gate selection.",
-        "- **No latency metric (D-11):** inference is interactive on the target hardware; "
-        "timing is deliberately not a reported metric (counts/metrics only, SYS-02).",
+        "- **No timing metric (D-11):** inference is interactive on the target hardware; "
+        "wall-clock speed is deliberately not a reported metric (counts/metrics only, SYS-02).",
         "",
     ]
 

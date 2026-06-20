@@ -44,11 +44,60 @@ def test_weighted_trainer_subclasses_hf_trainer():
 def test_class_weighting_minority_recall_positive(tiny_seqcls_model):
     """Class-weighted loss drives minority recall > 0 on the tiny fixture.
 
-    RED + slow until 03-02. Trains the tiny 2-label fixture a few steps with the
-    weighted trainer on an imbalanced toy set and asserts the minority class is
-    recalled at all (recall > 0).
+    Trains the tiny 2-label fixture a few steps with the weighted trainer on a heavily
+    imbalanced toy set (majority class 0, rare class 1) and asserts the minority class is
+    recalled at all (recall > 0) — i.e. the inverse-frequency weights prevent the class
+    collapse a bare loss would suffer (Pitfall 2 / D-14). Greened by 03-03.
     """
+    import tempfile
+
+    import numpy as np
+    import torch
+    from transformers import (
+        AutoModelForSequenceClassification,
+        AutoTokenizer,
+        TrainingArguments,
+    )
+
     train = pytest.importorskip("src.models.transformer_train")
     assert hasattr(train, "WeightedTrainer")
-    # End-to-end tiny-fit wiring is implemented in 03-02; placeholder RED assertion.
-    pytest.fail("transformer_train.WeightedTrainer tiny-fit not implemented yet (03-02)")
+
+    tokenizer = AutoTokenizer.from_pretrained(tiny_seqcls_model)
+    model = AutoModelForSequenceClassification.from_pretrained(tiny_seqcls_model)
+
+    # Heavily imbalanced toy set: many "majority" rows, a few "minority" rows, with a
+    # cleanly separable single-token signal per class so the tiny model can learn the
+    # boundary at all (the point is no minority collapse, not full convergence).
+    majority_texts = ["tok10 tok10 tok10"] * 12
+    minority_texts = ["tok40 tok40 tok40"] * 3
+    texts = majority_texts + minority_texts
+    labels = [0] * len(majority_texts) + [1] * len(minority_texts)
+
+    enc = train.build_tokenized(texts, tokenizer)
+    ds = train._TokenizedDataset(enc, labels)
+    cw = train.class_weights(labels)
+
+    out_dir = tempfile.mkdtemp(prefix="wt_test_")
+    args = TrainingArguments(
+        output_dir=out_dir,
+        num_train_epochs=40,
+        learning_rate=1e-2,
+        per_device_train_batch_size=4,
+        save_strategy="no",
+        report_to=[],
+        seed=42,
+    )
+    trainer = train.WeightedTrainer(
+        model=model, args=args, train_dataset=ds, class_weights=cw
+    )
+    trainer.train()
+
+    pred = trainer.predict(ds)
+    yhat = np.asarray(pred.predictions).argmax(axis=-1)
+    y = np.asarray(labels)
+
+    minority_mask = y == 1
+    minority_recall = float((yhat[minority_mask] == 1).mean())
+    assert minority_recall > 0.0, (
+        "class-weighted loss must recall the minority class at all (no collapse, D-14)"
+    )

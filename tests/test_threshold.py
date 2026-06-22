@@ -44,3 +44,42 @@ def test_threshold_result_records_precision_recall():
     assert keys is not None
     for k in ("threshold", "macro_f1", "precision", "recall"):
         assert k in keys
+
+
+# ---------------------------------------------------------------------------
+# 03-05 GAP-1 (CR-01) — the sweep must be LIVE end-to-end, not dead in main().
+# ---------------------------------------------------------------------------
+def test_main_calls_choose_gate_threshold():
+    """select_transformer.main() actually CALLS choose_gate_threshold and assigns it.
+
+    RED before 03-05: main() declares ``threshold_record = None`` and never reassigns
+    it from a sweep, so the gate threshold is dead at the 0.5 sentinel. GREEN after the
+    wiring: the source calls choose_gate_threshold and binds the result to
+    threshold_record (no longer the unreassigned None default).
+    """
+    import inspect
+
+    sel = pytest.importorskip("src.models.select_transformer")
+    src = inspect.getsource(sel.main)
+    assert "choose_gate_threshold" in src, "main() must call the sweep, not skip it"
+    # threshold_record must be reassigned from the sweep, not left at its None default.
+    assert "threshold_record = choose_gate_threshold" in src, (
+        "main() must bind threshold_record = choose_gate_threshold(...) on the val split"
+    )
+
+
+def test_evaluate_cascade_probs_exists_and_returns_pair():
+    """select_transformer exposes evaluate_cascade_probs returning a per-row 2-tuple.
+
+    RED before 03-05 (the function does not exist). Contract-only: assert it is callable
+    and its signature takes (cascade, df) — the per-stage probability feeder for the sweep.
+    """
+    import inspect
+
+    sel = pytest.importorskip("src.models.select_transformer")
+    fn = getattr(sel, "evaluate_cascade_probs", None)
+    assert fn is not None, "select_transformer must expose evaluate_cascade_probs"
+    params = list(inspect.signature(fn).parameters)
+    assert params[:2] == ["cascade", "df"], (
+        "evaluate_cascade_probs(cascade, df) — feeds the val sweep per-stage probs"
+    )

@@ -60,3 +60,55 @@ def test_confidence_path_product(tiny_seqcls_model):
 
         prod = math.prod(result["path_probs"])
         assert conf == pytest.approx(prod, abs=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# 03-05 GAP-1 (CR-01) — per-stage probability accessor that feeds the live sweep.
+# ---------------------------------------------------------------------------
+def test_gate_realfake_probs_returns_two_floats_in_unit_interval(tiny_seqcls_model):
+    """cascade.gate_realfake_probs(text) -> (p_mal, p_real), both floats in [0,1].
+
+    RED before 03-05 (method does not exist). It returns gate P(malicious) and realfake
+    P(real) via the SAME calibrated _probs path the cascade already uses.
+    """
+    cascade = _load_cascade(tiny_seqcls_model)
+    p_mal, p_real = cascade.gate_realfake_probs("some neutral news text")
+    assert isinstance(p_mal, float) and isinstance(p_real, float)
+    assert 0.0 <= p_mal <= 1.0
+    assert 0.0 <= p_real <= 1.0
+
+
+def test_evaluate_cascade_probs_aligned_to_frame(tiny_seqcls_model):
+    """evaluate_cascade_probs(cascade, df) returns two per-row lists aligned to df.
+
+    RED before 03-05. Three-row frame -> two length-3 lists, every value in [0,1].
+    """
+    sel = pytest.importorskip("src.models.select_transformer")
+    from tests.conftest import _make_lang_frame
+
+    df = _make_lang_frame(
+        [
+            ("The senate passed the bill today.", "real", "isot", "true", "en"),
+            ("Aliens run the central bank, sources say.", "fake", "isot", "fake", "en"),
+            ("WIN a FREE prize now!!! Click http://spam.example", "malicious", "smsspam", "spam", "en"),
+        ]
+    )
+    cascade = _load_cascade(tiny_seqcls_model)
+    gate_mal_probs, rf_probs_real = sel.evaluate_cascade_probs(cascade, df)
+    assert len(gate_mal_probs) == 3
+    assert len(rf_probs_real) == 3
+    assert all(0.0 <= p <= 1.0 for p in gate_mal_probs)
+    assert all(0.0 <= p <= 1.0 for p in rf_probs_real)
+
+
+def test_apply_temperature_used_in_probs():
+    """_probs uses apply_temperature, not the inline ``logits / T`` softmax (WR-04 guard).
+
+    RED before 03-05 (the inline pattern is still present). Source-shape regression guard.
+    """
+    import inspect
+
+    infer = pytest.importorskip("src.models.transformer_infer")
+    src = inspect.getsource(infer.TransformerCascade._probs)
+    assert "apply_temperature" in src, "_probs must call calibration.apply_temperature"
+    assert "logits / T" not in src, "_probs must not keep the inline logits/T softmax (WR-04)"

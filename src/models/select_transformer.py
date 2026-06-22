@@ -128,7 +128,9 @@ def choose_gate_threshold(
         if best is None or f1 > best["macro_f1"]:
             prec, rec = _malicious_precision_recall(y_true, y_pred)
             best = {"threshold": float(thr), "macro_f1": f1, "precision": prec, "recall": rec}
-    assert best is not None, "threshold grid must be non-empty"
+    if best is None:
+        # IN-01: a raised error survives ``python -O`` (a bare assert is stripped).
+        raise ValueError("threshold grid must be non-empty")
     log.info(
         "chosen gate threshold (val argmax cascade macro-F1): thr=%.2f macro_f1=%.4f "
         "mal_P=%.4f mal_R=%.4f",
@@ -163,8 +165,12 @@ def select_best_transformer(results: dict) -> str:
 
       * A backbone with collapsed fake/malicious recall is DISQUALIFIED (cannot win).
       * Among qualified backbones, rank by Bangla macro-F1 first, English second (D-01).
-      * Near-ties on the Bangla number (within ``_TIE_BAND``) break toward the LIGHTER
-        backbone (fewer params, D-03 — banglishbert ~110M over xlmr ~270M).
+      * Near-ties on the Bangla number (within ``_TIE_BAND``) are first narrowed by the
+        ENGLISH component (WR-02): when the gate abstains on Bangla (D-07) every backbone
+        can tie at the same degenerate bn number, so English is the meaningful discriminator
+        before size is consulted.
+      * Only when bn AND en are BOTH within ``_TIE_BAND`` does the D-03 size tiebreak apply
+        (lighter backbone wins — banglishbert ~110M over xlmr ~270M).
       * If every backbone collapsed, fall back to ranking all (a winner is always returned).
     """
     qualified = {n: r for n, r in results.items() if not _collapsed(r)}
@@ -176,14 +182,28 @@ def select_best_transformer(results: dict) -> str:
         reverse=True,
     )
     top = ranked[0]
-    top_bn = _bn_then_en(pool[top]["per_language_macro_f1"])[0]
-    ties = [
+    top_bn, top_en = _bn_then_en(pool[top]["per_language_macro_f1"])
+
+    # Backbones tied with the top on the Bangla number (within _TIE_BAND).
+    bn_ties = [
         n
         for n in ranked
         if abs(_bn_then_en(pool[n]["per_language_macro_f1"])[0] - top_bn) <= _TIE_BAND
     ]
-    # D-03 size tiebreak: lighter backbone wins a near-tie (default heavy if unknown).
-    return min(ties, key=lambda n: BACKBONE_PARAMS.get(n, 10**12))
+    if len(bn_ties) == 1:
+        return bn_ties[0]
+
+    # WR-02: break the degenerate Bangla tie on ENGLISH before falling to size. Re-rank the
+    # bn-tied pool by English macro-F1 descending; keep those within _TIE_BAND of its best.
+    bn_ties.sort(key=lambda n: _bn_then_en(pool[n]["per_language_macro_f1"])[1], reverse=True)
+    best_en = _bn_then_en(pool[bn_ties[0]]["per_language_macro_f1"])[1]
+    en_ties = [
+        n
+        for n in bn_ties
+        if abs(_bn_then_en(pool[n]["per_language_macro_f1"])[1] - best_en) <= _TIE_BAND
+    ]
+    # Only when bn AND en both tie within the band does the D-03 size tiebreak decide.
+    return min(en_ties, key=lambda n: BACKBONE_PARAMS.get(n, 10**12))
 
 
 # Plan-named alias.
@@ -221,6 +241,25 @@ def evaluate_cascade(cascade, df) -> list[str]:
     the list of predicted 3-class labels in row order so the metric harness can score them.
     """
     return [cascade.predict(t)["label"] for t in df["text"]]
+
+
+def evaluate_cascade_probs(cascade, df) -> tuple[list[float], list[float]]:
+    """Per-row gate/real-fake probabilities aligned to ``df`` — the val-sweep feeder (D-09).
+
+    Calls :meth:`TransformerCascade.gate_realfake_probs` on every row of ``df["text"]`` and
+    returns ``(gate_mal_probs, rf_probs_real)``: two lists in row order where
+    ``gate_mal_probs[i]`` is P(malicious) from the gate and ``rf_probs_real[i]`` is P(real)
+    from the real/fake head. These are exactly the inputs :func:`choose_gate_threshold`
+    sweeps, so the threshold is tuned on the SAME calibrated probabilities the online
+    cascade emits. :func:`evaluate_cascade` (label-only) is kept for the test-metrics path.
+    """
+    gate_mal_probs: list[float] = []
+    rf_probs_real: list[float] = []
+    for text in df["text"]:
+        p_mal, p_real = cascade.gate_realfake_probs(text)
+        gate_mal_probs.append(p_mal)
+        rf_probs_real.append(p_real)
+    return gate_mal_probs, rf_probs_real
 
 
 # ---------------------------------------------------------------------------
@@ -361,15 +400,22 @@ def main() -> int:
     backbone whose export dir is absent (the real fine-tune happens on Colab).
     """
     from src.models.transformer_data import load_splits
-    from src.models.transformer_infer import MODELS_DIR, TransformerCascade
+    from src.models.transformer_infer import (
+        MODELS_DIR,
+        TransformerCascade,
+        write_gate_threshold,
+    )
 
     train, val, test = load_splits()
     del train  # selection uses val (sweep) + test (final metrics) only
 
     results: dict = {}
+    threshold_records: dict = {}  # per-backbone swept records (winner's is reported/written)
     threshold_record: Optional[dict] = None
     leakage_record: Optional[dict] = None
     code_mixed_record: Optional[dict] = None
+
+    y_val = list(val["label"])
 
     for backbone in BACKBONE_PARAMS:
         export_dir = MODELS_DIR / backbone
@@ -377,6 +423,17 @@ def main() -> int:
             log.info("skip %s -- no export at %s", backbone, export_dir)
             continue
         cascade = TransformerCascade(model_dir=export_dir)
+
+        # D-09: sweep the gate threshold on VAL per-stage probabilities (never test), then
+        # APPLY the chosen threshold to the cascade BEFORE evaluating the test split so the
+        # reported test metrics use the val-tuned operating point — not the 0.5 sentinel.
+        gate_mal_probs, rf_probs_real = evaluate_cascade_probs(cascade, val)
+        threshold_record = choose_gate_threshold(
+            val, y_val, gate_mal_probs, rf_probs_real
+        )
+        threshold_records[backbone] = threshold_record
+        cascade.temp["gate_threshold"] = threshold_record["threshold"]
+
         test_pred = evaluate_cascade(cascade, test)
         y_test = list(test["label"])
         results[backbone] = {
@@ -396,6 +453,12 @@ def main() -> int:
 
     chosen = select_best_transformer(results)
     leakage_record = transformer_leakage_smell(results[chosen]["test_macro_f1"])
+
+    # The winner's val-swept threshold is the one the report records AND the one written
+    # into the exported temperature.json (overwriting the 0.5 sentinel baked in at export).
+    threshold_record = threshold_records.get(chosen, threshold_record)
+    if threshold_record is not None:
+        write_gate_threshold(MODELS_DIR / chosen, threshold_record["threshold"])
 
     # Optional code-mixed probe (qualitative, small-N — D-02).
     probe_path = REPO_ROOT / "data" / "probe" / "code_mixed_probe.csv"

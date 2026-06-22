@@ -110,13 +110,21 @@ def build_tokenized(texts, tokenizer, max_length: int = MAX_LENGTH):
     )
 
 
-def class_weights(labels):
-    """Inverse-frequency class weights as a ``torch.FloatTensor`` (Pattern 3, D-14).
+def class_weights(labels, num_classes: int | None = None):
+    """Inverse-frequency class weights as a ``torch.FloatTensor`` (Pattern 3, D-14, WR-03).
 
     ``labels`` is a sequence of integer class indices (per the relevant stage class order).
     Weight for class ``c`` is ``N / (K * count_c)`` (inverse frequency, normalized so the
     mean weight is ~1) — larger for the rarer class. NO resampling (D-14 forbids SMOTE /
     oversampling); imbalance is handled purely by these loss weights.
+
+    The returned tensor ALWAYS has length ``num_classes`` (WR-03): when a class of the full
+    stage label set is absent from this split, its index gets weight ``0.0`` (no rows ⇒ no
+    gradient) rather than the vector being shorter than the stage's label count — otherwise a
+    ``CrossEntropyLoss(weight=...)`` would crash on a shape mismatch against the head's logits.
+    ``num_classes`` defaults to ``max observed index + 1`` to preserve the existing call sites
+    where every class is present. ``K`` (the inverse-frequency divisor) is the number of
+    PRESENT classes, so present-class weights are unchanged from the prior behavior.
 
     ``torch`` is imported lazily here so the module imports without torch present.
     """
@@ -124,7 +132,13 @@ def class_weights(labels):
 
     counts = pd.Series(list(labels)).value_counts()
     n = int(counts.sum())
-    k = int(counts.shape[0])
-    # Order weights by ascending class index so weights[i] is the weight of class i.
-    weights = [n / (k * int(counts[c])) for c in sorted(counts.index)]
+    k = int(counts.shape[0])  # present classes only — absent classes contribute no gradient
+
+    if num_classes is None:
+        num_classes = int(max(counts.index)) + 1 if k else 0
+
+    # Absent indices default to 0.0; present indices keep the inverse-frequency weight.
+    weights = [0.0] * num_classes
+    for c in counts.index:
+        weights[int(c)] = n / (k * int(counts[c]))
     return torch.FloatTensor(weights)

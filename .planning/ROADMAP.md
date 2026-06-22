@@ -69,7 +69,7 @@ Plans:
 
 **Wave 5 — gap closure** *(closes verification gaps_found 2026-06-20)*
 
-- [ ] 03-05-PLAN.md — GAP 1 / CR-01 (autonomous): wire the dead D-09 gate-threshold sweep into select_transformer.main() — expose per-stage val probs (evaluate_cascade_probs / cascade.gate_realfake_probs), assign threshold_record, apply before test eval + write into exported temperature.json; fold in WR-04/IN-01/WR-02/WR-03. Code fix + RED→GREEN unit tests.
+- [x] 03-05-PLAN.md — GAP 1 / CR-01 (autonomous): wired the dead D-09 gate-threshold sweep into select_transformer.main() — per-stage val probs (evaluate_cascade_probs / cascade.gate_realfake_probs), threshold_record assigned, applied before test eval + written into exported temperature.json; folded in WR-04/IN-01/WR-02/WR-03. RED→GREEN→GREEN, full suite 127 exit 0.
 
 **Wave 6 — gap closure** *(blocked on 03-05; not autonomous)*
 

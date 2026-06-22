@@ -181,10 +181,12 @@ class _TokenizedDataset:
         return len(self.labels)
 
     def __getitem__(self, idx):
-        import torch
-
-        item = {k: torch.tensor(v[idx]) for k, v in self.encodings.items()}
-        item["labels"] = torch.tensor(int(self.labels[idx]))
+        # Return the raw (ragged) per-row lists + an int label. The Trainer's
+        # DataCollatorWithPadding pads each minibatch to its own longest length and builds
+        # the tensors. Pre-tensorizing / padding here is what OOM-killed free Colab on the
+        # 103k-row train split (see build_tokenized).
+        item = {k: v[idx] for k, v in self.encodings.items()}
+        item["labels"] = int(self.labels[idx])
         return item
 
 
@@ -207,6 +209,7 @@ def train_stage(model_id: str, stage: str, train_df, val_df):
     from transformers import (
         AutoModelForSequenceClassification,
         AutoTokenizer,
+        DataCollatorWithPadding,
         TrainingArguments,
     )
 
@@ -221,6 +224,11 @@ def train_stage(model_id: str, stage: str, train_df, val_df):
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tr_enc = build_tokenized(tr_texts, tokenizer)
     va_enc = build_tokenized(va_texts, tokenizer)
+
+    # Dynamic per-minibatch padding (build_tokenized leaves rows ragged). Keeps the full
+    # tokenized train split out of system RAM (the up-front pad-to-256 OOM-killed Colab) and
+    # speeds training since most rows are far shorter than MAX_LENGTH.
+    data_collator = DataCollatorWithPadding(tokenizer)
 
     model = AutoModelForSequenceClassification.from_pretrained(model_id, num_labels=num_labels)
 
@@ -247,6 +255,7 @@ def train_stage(model_id: str, stage: str, train_df, val_df):
         train_dataset=_TokenizedDataset(tr_enc, tr_y),
         eval_dataset=_TokenizedDataset(va_enc, va_y),
         class_weights=cw,
+        data_collator=data_collator,
     )
     trainer.train()
 

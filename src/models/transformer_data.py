@@ -96,17 +96,22 @@ def build_tokenized(texts, tokenizer, max_length: int = MAX_LENGTH):
     The preprocessing is the EXACT :func:`src.preprocess.preprocess` inference uses — no
     fork. NA-safe like :func:`src.models.vectorizer.texts_from_frame`: a pandas NA cell is
     coalesced to ``None`` so the missing-cell → ``""`` contract holds. Tokenization uses
-    head truncation at ``max_length`` with padding.
+    head truncation at ``max_length`` but **no up-front padding** (``padding=False``): rows
+    stay ragged (their true lengths) and a ``DataCollatorWithPadding`` pads each minibatch to
+    its own longest at train time. Padding the whole 103k-row train split to ``max_length``
+    up front materialized ~2 GB of token ids in system RAM and OOM-killed the free-Colab
+    kernel (Pitfall 6); dynamic padding keeps RAM flat and trains faster (most rows —
+    SMS/headlines — are far shorter than ``max_length``).
 
-    Returns the tokenizer's batch encoding (e.g. a ``BatchEncoding`` dict of input_ids /
-    attention_mask).
+    Returns the tokenizer's batch encoding (e.g. a ``BatchEncoding`` dict of ragged
+    input_ids / attention_mask).
     """
     cleaned = [preprocess(None if pd.isna(t) else t) for t in texts]
     return tokenizer(
         cleaned,
         truncation=True,
         max_length=max_length,
-        padding=True,
+        padding=False,
     )
 
 

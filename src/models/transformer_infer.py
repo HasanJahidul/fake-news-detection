@@ -33,7 +33,11 @@ from pathlib import Path
 from typing import Optional, Union
 
 from src.data.label_map import LABELS  # noqa: F401  (locked class order; never hardcode)
-from src.models.calibration import load_temperature
+from src.models.calibration import (
+    apply_temperature,
+    load_temperature,
+    save_temperature,
+)
 from src.models.transformer_data import (
     GATE_CLASSES,
     MAX_LENGTH,
@@ -137,11 +141,12 @@ class TransformerCascade:
         self.rf = AutoModelForSequenceClassification.from_pretrained(str(realfake_dir)).eval()
 
     def _probs(self, model, tok, text: str, T: float):
-        """preprocess → tokenize (head-truncate, MAX_LENGTH) → softmax(logits / T).
+        """preprocess → tokenize (head-truncate, MAX_LENGTH) → softmax(apply_temperature).
 
-        Runs the SHARED ``preprocess()`` BEFORE tokenizing (D-12 parity), then divides the
-        logits by the calibrated temperature ``T`` and softmaxes. Returns the 1-D class
-        probability tensor for the single input row.
+        Runs the SHARED ``preprocess()`` BEFORE tokenizing (D-12 parity), then scales the
+        logits by the calibrated temperature ``T`` via the single-source
+        :func:`src.models.calibration.apply_temperature` (WR-04) and softmaxes. Returns the
+        1-D class probability tensor for the single input row.
         """
         import torch
 
@@ -153,7 +158,24 @@ class TransformerCascade:
                 return_tensors="pt",
             )
             logits = model(**enc).logits
-            return torch.softmax(logits / T, dim=-1)[0]
+            return torch.softmax(apply_temperature(logits, T), dim=-1)[0]
+
+    def gate_realfake_probs(self, text: str) -> tuple[float, float]:
+        """Per-stage probabilities for the sweep: ``(p_mal, p_real)``.
+
+        ``p_mal`` is the gate softmax at the ``malicious`` index; ``p_real`` is the
+        real/fake head softmax at the ``real`` index — both produced by the SAME calibrated
+        :meth:`_probs` path the cascade uses, so the offline sweep and the online
+        :meth:`predict` share one probability source. Returns plain floats in ``[0, 1]``.
+        """
+        gate_probs = self._probs(self.gate, self.gate_tok, text, self.temp["gate"])
+        mal_idx = self.label_map["gate"].index("malicious")
+        p_mal = float(gate_probs[mal_idx])
+
+        rf_probs = self._probs(self.rf, self.rf_tok, text, self.temp["realfake"])
+        real_idx = self.label_map["realfake"].index("real")
+        p_real = float(rf_probs[real_idx])
+        return p_mal, p_real
 
     def predict(self, text: str) -> dict:
         """Run the two-stage cascade and return ``{label, confidence, path, path_probs}``.
@@ -191,6 +213,26 @@ class TransformerCascade:
             "path": ["gate", "realfake"],
             "path_probs": [p_not_mal, p_verdict],
         }
+
+
+def write_gate_threshold(model_dir: PathLike, threshold: float) -> None:
+    """Overwrite the exported ``temperature.json`` gate_threshold with the swept value.
+
+    Loads ``<model_dir>/temperature.json`` via :func:`load_temperature`, replaces only its
+    ``gate_threshold`` field with ``float(threshold)``, and re-persists via
+    :func:`save_temperature` — the per-head ``gate``/``realfake`` temperatures are preserved
+    untouched. Lets the selector overwrite the 0.5 sentinel after the val sweep WITHOUT
+    re-exporting weights (T-03-16: selector-internal, fixed project-anchored path, no user
+    input crosses this boundary).
+    """
+    p = Path(model_dir) / "temperature.json"
+    temp = load_temperature(p)
+    save_temperature(
+        p,
+        gate=temp["gate"],
+        realfake=temp["realfake"],
+        gate_threshold=float(threshold),
+    )
 
 
 def load(model_dir: Optional[PathLike] = None) -> TransformerCascade:
